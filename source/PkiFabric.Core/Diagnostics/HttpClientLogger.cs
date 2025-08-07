@@ -1,6 +1,10 @@
-﻿using Microsoft.Extensions.Http.Logging;
-using Microsoft.Extensions.Logging;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
 using System.Globalization;
+
+using Microsoft.Extensions.Http.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace PkiFabric.Core.Diagnostics;
 

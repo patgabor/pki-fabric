@@ -1,4 +1,7 @@
-﻿using System.Threading.RateLimiting;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Threading.RateLimiting;
 
 using CommunityToolkit.Diagnostics;
 

@@ -1,7 +1,13 @@
-﻿using System.Globalization;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Globalization;
 using System.Reflection;
+
 using CommunityToolkit.Diagnostics;
+
 using Destructurama;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,8 +16,10 @@ using Microsoft.Extensions.Diagnostics.ExceptionSummarization;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+
 using PkiFabric.Core.Diagnostics;
 using PkiFabric.Core.RateLimiting;
+
 using Serilog;
 using Serilog.Configuration;
 using Serilog.Events;

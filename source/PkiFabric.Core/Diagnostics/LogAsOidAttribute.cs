@@ -1,7 +1,12 @@
-﻿using Destructurama.Attributed;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Diagnostics.CodeAnalysis;
+
+using Destructurama.Attributed;
+
 using Serilog.Core;
 using Serilog.Events;
-using System.Diagnostics.CodeAnalysis;
 
 namespace PkiFabric.Core.Diagnostics;
 

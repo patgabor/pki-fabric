@@ -1,4 +1,7 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 
 using CommunityToolkit.Diagnostics;

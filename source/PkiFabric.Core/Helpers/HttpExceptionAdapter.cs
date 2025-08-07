@@ -1,4 +1,7 @@
-﻿using System.Collections.Frozen;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Collections.Frozen;
 using System.Security;
 using System.Security.Authentication;
 

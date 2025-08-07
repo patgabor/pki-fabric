@@ -1,4 +1,8 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using Microsoft.Extensions.Hosting;
+
 using Serilog.Core;
 using Serilog.Events;
 
@@ -26,7 +30,7 @@ internal sealed class HostEnvironmentEnricher : ILogEventEnricher
         }
 
         if (string.IsNullOrWhiteSpace(environmentName))
-        {            
+        {
             environmentName = s_fallbackEnvironment;
         }
 

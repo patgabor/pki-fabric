@@ -1,7 +1,12 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Net;
+
+using Microsoft.AspNetCore.Http;
+
 using Serilog.Core;
 using Serilog.Events;
-using System.Net;
 
 namespace PkiFabric.Core.Diagnostics;
 

@@ -1,4 +1,7 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.ComponentModel.DataAnnotations;
 
 namespace PkiFabric.Core.RateLimiting;
 

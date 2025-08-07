@@ -1,8 +1,13 @@
-﻿using System.Collections;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Collections;
+
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Logging;
+
 using PkiFabric.Core.Helpers;
 
 namespace PkiFabric.Core.Diagnostics;

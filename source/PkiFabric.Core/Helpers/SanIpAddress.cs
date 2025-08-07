@@ -1,4 +1,7 @@
-﻿using System.Net;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Net;
 
 using Destructurama.Attributed;
 

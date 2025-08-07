@@ -1,4 +1,7 @@
-﻿using System.Collections;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Collections;
 using System.Collections.Immutable;
 
 namespace PkiFabric.Core.Helpers;

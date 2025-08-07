@@ -1,13 +1,14 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Diagnostics.CodeAnalysis;
+
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
+
 using PkiFabric.Core.Helpers;
-using static System.Security.Cryptography.X509Certificates.DSACertificateExtensions;
-using static System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions;
-using static System.Security.Cryptography.X509Certificates.RSACertificateExtensions;
 
 using BcX509 = Org.BouncyCastle.X509;
 

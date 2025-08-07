@@ -1,4 +1,7 @@
-﻿using System.Security.Claims;
+﻿// Copyright (c) PATGABOR. All rights reserved.
+// Licensed under the Apache License 2.0 license.
+
+using System.Security.Claims;
 
 using CommunityToolkit.Diagnostics;
 
