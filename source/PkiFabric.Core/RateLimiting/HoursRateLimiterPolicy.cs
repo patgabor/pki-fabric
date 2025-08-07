@@ -1,0 +1,43 @@
+﻿using System.Threading.RateLimiting;
+
+using CommunityToolkit.Diagnostics;
+
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
+
+namespace PkiFabric.Core.RateLimiting;
+
+/// <summary>
+/// This class implements a rate limiter policy that allows a fixed number of requests per hour.
+/// </summary>
+public sealed class HoursRateLimiterPolicy(IPartitionKeyCalculator partitionKeyCalculator, IOptions<RateLimiterConfig> options)
+    : RateLimiterPolicyBase(partitionKeyCalculator)
+{
+    private const int QueueLimit = 0;
+    private const QueueProcessingOrder ProcessingOrder = QueueProcessingOrder.OldestFirst;
+    private static readonly TimeSpan s_window = TimeSpan.FromHours(1);
+
+    private readonly IPartitionKeyCalculator _partitionKeyCalculator = partitionKeyCalculator;
+    private readonly IOptions<RateLimiterConfig> _options = options;
+
+    /// <inheritdoc/>
+    public override RateLimitPartition<string> GetPartition(HttpContext httpContext)
+    {
+        Guard.IsNotNull(httpContext);
+
+        string partitionKey = _partitionKeyCalculator.CalculatePartitionKey(httpContext);
+
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, partition =>
+        {
+            RateLimiterConfig config = _options.Value;
+            return new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                Window = s_window,
+                PermitLimit = config.MaxRequestsPerHour,
+                QueueProcessingOrder = ProcessingOrder,
+                QueueLimit = QueueLimit, // Adjust as needed
+            };
+        });
+    }
+}
