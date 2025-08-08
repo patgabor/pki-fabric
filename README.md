@@ -5,28 +5,27 @@ PKI Framework System
 
 ## Overview
 
-pki-fabric is a comprehensive Public Key Infrastructure (PKI) framework designed to simplify the management, parsing, and handling of cryptographic data and certificates in .NET applications. It provides a set of robust utilities and types for working with:
+pki-fabric is an educational project developed to facilitate a deeper understanding of Public Key Infrastructure (PKI) concepts and cryptographic data handling within the .NET ecosystem. It offers foundational utilities and types for working with:
 
-- PEM-encoded cryptographic objects such as certificates, private keys, and certificate signing requests (CSRs)
-- Detailed management of Subject Alternative Name (SAN) extensions including DNS names, IP addresses, RFC 822 emails, URIs, and more
-- Parsing and validation of various X.509 certificate components with support for multiple SAN types
-- Integration-ready design for building secure certificate-based authentication and encryption workflows
+- PEM-encoded cryptographic artifacts, including certificates, private keys, and certificate signing requests (CSRs)
+- Parsing and representation of common Subject Alternative Name (SAN) types such as DNS names, IP addresses, RFC 822 email addresses, URIs, and other SAN variants
+- Core components of X.509 certificates and associated cryptographic materials
 
 ## Features
 
-- Reliable parsing and serialization of PEM cryptographic materials
-- Support for a broad range of SAN types to handle diverse certificate use cases
-- Extensible design utilizing immutable types and .NET idioms for safety and clarity
-- Suitable for both server-side and client-side certification operations in enterprise-grade security systems
+- Fundamental parsing and serialization of PEM-formatted cryptographic content
+- Support for a variety of SAN types to aid exploration of certificate extensions
+- Implementation following immutable and idiomatic .NET design principles to reinforce best coding practices
+- Primarily intended as a learning tool for experimentation and prototyping rather than production use
 
-## Usage
+## Intended Audience and Usage
 
-The framework is intended to be used as a foundation or utility library in applications that require strong PKI capabilities, such as:
+This project is designed to support developers, researchers, and learners aiming to:
 
-- Automated certificate issuance and renewal systems
-- Secure communication platforms requiring certificate validation
-- Custom identity management and access control solutions
+- Gain practical insight into certificate structures and cryptographic data representation
+- Understand the handling and processing of Subject Alternative Names within the context of X.509 certificates
+- Build foundational knowledge of PKI operations using .NET technologies
 
 ---
 
-For more information and detailed documentation, please refer to the project wiki or README sections.
+This project should be regarded as a resource for educational purposes and skill development rather than a comprehensive production framework. 
