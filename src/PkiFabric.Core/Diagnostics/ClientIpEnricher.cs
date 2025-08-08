@@ -13,15 +13,19 @@ namespace PkiFabric.Core.Diagnostics;
 /// <summary>
 /// This enricher adds a source IP address to log events, which is useful for tracing requests across distributed systems.
 /// </summary>
-internal sealed class ClientIpEnricher(IHttpContextAccessor httpContextAccessor) : ILogEventEnricher
+public sealed class ClientIpEnricher(IHttpContextAccessor httpContextAccessor) : ILogEventEnricher
 {
     private const string PropertyName = "ClientIp";
     private static readonly IPAddress s_fallbackIpAddress = IPAddress.None;
 
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
+    /// <summary>
+    /// Ctor that initializes the enricher with a default <see cref="HttpContextAccessor"/>.
+    /// </summary>
     public ClientIpEnricher() : this(new HttpContextAccessor()) { }
 
+    /// <inheritdoc/>
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
     {
         HttpContext? httpContext = _httpContextAccessor.HttpContext;

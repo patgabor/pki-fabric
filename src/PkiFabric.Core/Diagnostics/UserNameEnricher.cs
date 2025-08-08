@@ -9,10 +9,10 @@ namespace PkiFabric.Core.Diagnostics;
 /// <summary>
 /// This class enriches log events with the full user name, including the domain if available.
 /// </summary>
-internal sealed class UserNameEnricher : ILogEventEnricher
+public sealed class UserNameEnricher : ILogEventEnricher
 {
     private const string PropertyName = "UserName";
-
+    /// <inheritdoc/>
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
     {
         string userDomainName = Environment.UserDomainName;

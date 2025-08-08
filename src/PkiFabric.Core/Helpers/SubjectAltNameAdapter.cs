@@ -5,6 +5,8 @@ using System.Net;
 using System.Net.Mail;
 using System.Security.Cryptography;
 
+using Microsoft.AspNetCore.Http.HttpResults;
+
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
 
@@ -25,22 +27,30 @@ public sealed class SubjectAltNameAdapter :
     IAdapter<SanOtherName, GeneralName>,
     IAdapter<GeneralName, ISubjectAltName>
 {
+    /// <summary>
+    /// Gets a default instance of <see cref="SubjectAltNameAdapter"/>.
+    /// </summary>
+    public static SubjectAltNameAdapter Default { get; } = new();
+
     /// <inheritdoc/>
     public GeneralName Adapt(SanIpAddress source)
     {
         DerOctetString ipAddress = new(source.Value.GetAddressBytes());
+        // The IP address is encoded as an OCTET STRING.
         return new(GeneralName.IPAddress, ipAddress);
     }
     /// <inheritdoc/>
     public GeneralName Adapt(SanRegisteredId source)
     {
         DerObjectIdentifier oid = new(source.Value.Value);
+        // The registered ID is encoded as an OBJECT IDENTIFIER.
         return new(GeneralName.RegisteredID, oid);
     }
     /// <inheritdoc/>
     public GeneralName Adapt(SanUniformResourceIdentifier source)
     {
         DerIA5String uri = new(source.Value);
+        // The URI is encoded as an IA5String.
         return new(GeneralName.UniformResourceIdentifier, uri);
     }
     /// <inheritdoc/>
@@ -60,12 +70,14 @@ public sealed class SubjectAltNameAdapter :
         var taggedPartyName = new DerTaggedObject(isExplicit: true, tagNo: 1, obj: partyNameUtf8);
         elements.Add(taggedPartyName);
         var ediPartyNameSequence = new DerSequence(elements.ToArray());
+        // The EDI Party Name is encoded as a SEQUENCE of EXPLICIT UTF8Strings.
         return new GeneralName(GeneralName.EdiPartyName, ediPartyNameSequence);
     }
     /// <inheritdoc/>
     public GeneralName Adapt(SanDirectoryName source)
     {
         X509Name x509Name = new(source.DistinguishedName);
+        // The directory name is encoded as an X.509 Name.
         return new(GeneralName.DirectoryName, x509Name);
     }
     /// <inheritdoc/>
@@ -81,18 +93,21 @@ public sealed class SubjectAltNameAdapter :
         }
 
         var sequence = new DerSequence(asn1Elements.ToArray());
+        // The X.400 address is encoded as a SEQUENCE of EXPLICIT UTF8Strings.
         return new GeneralName(GeneralName.X400Address, sequence);
     }
     /// <inheritdoc/>
     public GeneralName Adapt(SanDnsName source)
     {
         DerIA5String dns = new(source.Value);
+        // The DNS name is encoded as an IA5String.
         return new(GeneralName.DnsName, dns);
     }
     /// <inheritdoc/>
     public GeneralName Adapt(SanRfc822Name source)
     {
         DerIA5String rfc822Name = new(source.Value.Address);
+        // The RFC 822 name (EMAIL) is encoded as an IA5String.
         return new(GeneralName.Rfc822Name, rfc822Name);
     }
     /// <inheritdoc/>
@@ -101,29 +116,28 @@ public sealed class SubjectAltNameAdapter :
         DerObjectIdentifier oid = new(source.TypeId.Value);
         DerUtf8String str = new(source.Value);
         DerSequence sequence = new(oid, new DerTaggedObject(0, str));
+        // The OtherName is encoded as a SEQUENCE containing the OID and the value as an EXPLICIT UTF8String.
         return new(GeneralName.OtherName, sequence);
     }
     /// <inheritdoc/>
-    public ISubjectAltName Adapt(GeneralName source)
+    public ISubjectAltName Adapt(GeneralName source) => source.TagNo switch
     {
-        return source.TagNo switch
-        {
-            GeneralName.OtherName => DecodeOtherName(source),
-            GeneralName.IPAddress => DecodeIpAddress(source),
-            GeneralName.UniformResourceIdentifier => DecodeUniformResourceIdentifier(source),
-            GeneralName.EdiPartyName => DecodeEdiPartyName(source),
-            GeneralName.DirectoryName => DecodeDirectoryName(source),
-            GeneralName.X400Address => DecodeX400Address(source),
-            GeneralName.DnsName => DecodeDnsName(source),
-            GeneralName.Rfc822Name => DecodeRfc822Name(source),
-            GeneralName.RegisteredID => DecodeRegisteredId(source),
-            _ => throw new NotSupportedException($"Unsupported SAN type: {source.TagNo}")
-        };
-    }
+        GeneralName.OtherName => DecodeOtherName(source),
+        GeneralName.IPAddress => DecodeIpAddress(source),
+        GeneralName.UniformResourceIdentifier => DecodeUniformResourceIdentifier(source),
+        GeneralName.EdiPartyName => DecodeEdiPartyName(source),
+        GeneralName.DirectoryName => DecodeDirectoryName(source),
+        GeneralName.X400Address => DecodeX400Address(source),
+        GeneralName.DnsName => DecodeDnsName(source),
+        GeneralName.Rfc822Name => DecodeRfc822Name(source),
+        GeneralName.RegisteredID => DecodeRegisteredId(source),
+        _ => throw new NotSupportedException($"Unsupported SAN type: {source.TagNo}")
+    };
 
     private static SanRegisteredId DecodeRegisteredId(GeneralName source)
     {
         DerObjectIdentifier oid = DerObjectIdentifier.GetInstance(source.Name);
+
         return new SanRegisteredId(new Oid(oid.Id));
     }
 
@@ -131,12 +145,14 @@ public sealed class SubjectAltNameAdapter :
     {
         DerIA5String rfc822Name = DerIA5String.GetInstance(source.Name);
         MailAddress mail = new(rfc822Name.GetString());
+
         return new SanRfc822Name(mail);
     }
 
     private static SanDnsName DecodeDnsName(GeneralName source)
     {
         DerIA5String dnsName = DerIA5String.GetInstance(source.Name);
+
         return new SanDnsName(dnsName.GetString());
     }
 
@@ -171,6 +187,7 @@ public sealed class SubjectAltNameAdapter :
     private static SanDirectoryName DecodeDirectoryName(GeneralName source)
     {
         X509Name x509Name = X509Name.GetInstance(source.Name);
+
         return new SanDirectoryName(x509Name.ToString(reverse: false, X509Name.RFC2253Symbols));
     }
 
@@ -193,6 +210,7 @@ public sealed class SubjectAltNameAdapter :
     private static SanUniformResourceIdentifier DecodeUniformResourceIdentifier(GeneralName source)
     {
         string uniformResourceIdentifier = DerIA5String.GetInstance(source.Name).GetString();
+
         return new SanUniformResourceIdentifier(uniformResourceIdentifier);
     }
 
@@ -201,6 +219,7 @@ public sealed class SubjectAltNameAdapter :
         Asn1Object octetString = source.Name.ToAsn1Object();
         byte[] bytes = Asn1OctetString.GetInstance(octetString).GetOctets();
         IPAddress ipAddress = new(bytes);
+
         return new SanIpAddress(ipAddress);
     }
 
@@ -219,8 +238,9 @@ public sealed class SubjectAltNameAdapter :
             DerT61String t61String => t61String.GetString(),
             _ => innerObject.ToString() ?? // For unknown types, fall back to ASN.1 encoding string form
                 throw new NotSupportedException(
-                    $"Unsupported SAN type: {source.TagNo} - {innerObject.GetType().Name}"),
+                    $"Unsupported SAN type: {source.TagNo} - {innerObject.GetType().FullName ?? innerObject.GetType().Name}"),
         };
+
         return new SanOtherName(value, new Oid(typeId.Id));
     }
 
@@ -233,6 +253,6 @@ public sealed class SubjectAltNameAdapter :
         DerT61String t61 => t61.GetString(),
         _ => baseObject.ToString() ??
             throw new NotSupportedException(
-                $"Unsupported string value type {baseObject.GetType().Name}"),
+                $"Unsupported string value type {baseObject.GetType().FullName ?? baseObject.GetType().Name}"),
     };
 }

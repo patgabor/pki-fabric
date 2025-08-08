@@ -19,7 +19,7 @@ public sealed class OidFriendlyNameAdapter : IAdapter<string, Oid>
     /// <summary>
     /// Gets a default instance of <see cref="OidFriendlyNameAdapter"/>.
     /// </summary>
-    public static IAdapter<string, Oid> Default { get; } = new OidFriendlyNameAdapter();
+    public static OidFriendlyNameAdapter Default { get; } = new();
 
     /// <summary>
     /// Converts the stored friendly name to an <see cref="Oid"/> instance.

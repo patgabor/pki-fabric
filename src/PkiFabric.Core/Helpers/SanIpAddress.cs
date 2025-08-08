@@ -7,7 +7,18 @@ using Destructurama.Attributed;
 
 namespace PkiFabric.Core.Helpers;
 
+/// <summary>
+/// Represents a Subject Alternative Name (SAN) IP address.
+/// </summary>
+/// <remarks>
+/// The IP address corresponds to an IP address used in the SAN extension of a certificate.
+/// This can be either IPv4 or IPv6 format.
+/// </remarks>
 public sealed class SanIpAddress(IPAddress value) : ISubjectAltName
 {
-    [LogAsScalar] public IPAddress Value { get; } = value;
+    /// <summary>
+    /// Gets the IP address representing the IP address in the SAN extension.
+    /// </summary>
+    [LogAsScalar]
+    public IPAddress Value { get; } = value;
 }

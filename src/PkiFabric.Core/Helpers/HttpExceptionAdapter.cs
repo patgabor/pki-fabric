@@ -24,7 +24,7 @@ public sealed class HttpExceptionAdapter : IAdapter<Exception, ProblemHttpResult
     /// <summary>
     /// Gets a default instance of <see cref="HttpExceptionAdapter"/>.
     /// </summary>
-    public static IAdapter<Exception, ProblemHttpResult> Default { get; } = new HttpExceptionAdapter();
+    public static HttpExceptionAdapter Default { get; } = new();
 
     private static readonly FrozenDictionary<int, (string Title, string Url)> s_codes = new[]
     {

@@ -11,14 +11,16 @@ namespace PkiFabric.Core.Diagnostics;
 /// <summary>
 /// This enricher adds a correlation ID to log events, which is useful for tracing requests across distributed systems.
 /// </summary>
-internal sealed class CorrelationIdEnricher(IHttpContextAccessor httpContextAccessor) : ILogEventEnricher
+public sealed class CorrelationIdEnricher(IHttpContextAccessor httpContextAccessor) : ILogEventEnricher
 {
     private const string PropertyName = "CorrelationId";
 
     private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-
+    /// <summary>
+    /// Ctor that initializes the enricher with a default <see cref="HttpContextAccessor"/>.
+    /// </summary>
     public CorrelationIdEnricher() : this(new HttpContextAccessor()) { }
-
+    /// <inheritdoc/>
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
     {
         HttpContext? httpContext = _httpContextAccessor.HttpContext;

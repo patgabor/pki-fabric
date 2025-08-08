@@ -23,6 +23,12 @@ namespace PkiFabric.Core.Extensions;
 /// successful.</remarks>
 public static class CryptographyExtensions
 {
+    /// <summary>
+    /// Attempts to parse a PEM-encoded string into a <see cref="Pkcs10CertificationRequest"/> object.
+    /// </summary>
+    /// <param name="this">The PEM-encoded string representing a PKCS#10 certification request.</param>
+    /// <param name="certificationRequest">When this method returns, contains the parsed <see cref="Pkcs10CertificationRequest"/> if parsing succeeded; otherwise, null.</param>
+    /// <returns><c>true</c> if the string was successfully parsed into a <see cref="Pkcs10CertificationRequest"/>; otherwise, <c>false</c>.</returns>
     public static bool TryParseToPkcs10([NotNullWhen(true)] this string? @this, [NotNullWhen(true)] out Pkcs10CertificationRequest? certificationRequest)
     {
         if (string.IsNullOrEmpty(@this))
@@ -45,7 +51,12 @@ public static class CryptographyExtensions
             return false;
         }
     }
-
+    /// <summary>
+    /// Attempts to parse a PEM-encoded string into an X.509 <see cref="BcX509.X509Certificate"/> object.
+    /// </summary>
+    /// <param name="this">The PEM-encoded string representing an X.509 certificate.</param>
+    /// <param name="certificate">When this method returns, contains the parsed <see cref="BcX509.X509Certificate"/> if parsing succeeded; otherwise, null.</param>
+    /// <returns><c>true</c> if the string was successfully parsed into a certificate; otherwise, <c>false</c>.</returns>
     public static bool TryParseToCertificate([NotNullWhen(true)] this string? @this, [NotNullWhen(true)] out BcX509.X509Certificate? certificate)
     {
         if (string.IsNullOrEmpty(@this))
@@ -68,7 +79,12 @@ public static class CryptographyExtensions
             return false;
         }
     }
-
+    /// <summary>
+    /// Attempts to parse a PEM-encoded string into a public key as an <see cref="AsymmetricKeyParameter"/>.
+    /// </summary>
+    /// <param name="this">The PEM-encoded string representing a public key.</param>
+    /// <param name="publicKey">When this method returns, contains the parsed <see cref="AsymmetricKeyParameter"/> if parsing succeeded; otherwise, null.</param>
+    /// <returns><c>true</c> if the string was successfully parsed into a public key; otherwise, <c>false</c>.</returns>
     public static bool TryParseToPublicKey([NotNullWhen(true)] this string? @this, [NotNullWhen(true)] out AsymmetricKeyParameter? publicKey)
     {
         if (string.IsNullOrEmpty(@this))
@@ -91,7 +107,13 @@ public static class CryptographyExtensions
             return false;
         }
     }
-
+    /// <summary>
+    /// Attempts to parse a PEM-encoded string into a private key pair as an <see cref="AsymmetricCipherKeyPair"/>.
+    /// </summary>
+    /// <param name="this">The PEM-encoded string representing a private key.</param>
+    /// <param name="password">An optional password to decrypt the private key if it is encrypted; can be null for unencrypted keys.</param>
+    /// <param name="privateKey">When this method returns, contains the parsed <see cref="AsymmetricCipherKeyPair"/> if parsing succeeded; otherwise, null.</param>
+    /// <returns><c>true</c> if the string was successfully parsed into a private key; otherwise, <c>false</c>.</returns>
     public static bool TryParseToPrivateKey([NotNullWhen(true)] this string? @this, string? password, [NotNullWhen(true)] out AsymmetricCipherKeyPair? privateKey)
     {
         if (string.IsNullOrEmpty(@this))

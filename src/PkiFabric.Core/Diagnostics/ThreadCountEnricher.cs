@@ -10,10 +10,10 @@ namespace PkiFabric.Core.Diagnostics;
 /// This class enriches log events with the current number of active threads in the thread pool,
 /// which can be useful for monitoring and diagnosing performance issues related to threading in applications.
 /// </summary>
-internal sealed class ThreadCountEnricher : ILogEventEnricher
+public sealed class ThreadCountEnricher : ILogEventEnricher
 {
     private const string PropertyName = "ActiveThreadCount";
-
+    /// <inheritdoc/>
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
     {
         LogEventProperty prop = propertyFactory.CreateProperty(PropertyName, ThreadPool.ThreadCount);

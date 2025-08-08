@@ -11,15 +11,16 @@ namespace PkiFabric.Core.Diagnostics;
 /// <summary>
 /// This enricher adds the host environment (e.g., Development, Staging, Production) to log events.
 /// </summary>
-internal sealed class HostEnvironmentEnricher : ILogEventEnricher
+public sealed class HostEnvironmentEnricher : ILogEventEnricher
 {
     private const string PropertyName = "HostEnvironment";
     private const string AspNetCore = "ASPNETCORE_ENVIRONMENT";
     private const string DotNet = "DOTNET_ENVIRONMENT";
 
     // Microsoft's Default is Production if no environment variable is set
-    public static readonly string s_fallbackEnvironment = Environments.Production;
+    private static readonly string s_fallbackEnvironment = Environments.Production;
 
+    /// <inheritdoc/>
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
     {
         string? environmentName = Environment.GetEnvironmentVariable(AspNetCore);

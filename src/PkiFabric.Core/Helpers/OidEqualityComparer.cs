@@ -21,7 +21,7 @@ public sealed class OidEqualityComparer : IEqualityComparer<Oid>
     /// <summary>
     /// Gets a default instance of <see cref="OidEqualityComparer"/> that compares <see cref="Oid"/> objects by their <see cref="Oid.Value"/> property.
     /// </summary>
-    public static IEqualityComparer<Oid> Default { get; } = new OidEqualityComparer();
+    public static OidEqualityComparer Default { get; } = new();
     /// <summary>
     /// Determines whether the specified <see cref="Oid"/> objects are equal by comparing their <see cref="Oid.Value"/> properties using ordinal string comparison.
     /// </summary>

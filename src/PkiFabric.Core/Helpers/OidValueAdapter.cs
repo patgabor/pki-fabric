@@ -19,7 +19,7 @@ public sealed class OidValueAdapter : IAdapter<string, Oid>
     /// <summary>
     /// Gets a default instance of <see cref="OidValueAdapter"/>.
     /// </summary>
-    public static IAdapter<string, Oid> Default { get; } = new OidValueAdapter();
+    public static OidValueAdapter Default { get; } = new();
 
     /// <summary>
     /// Converts the stored OID string to an <see cref="Oid"/> instance.

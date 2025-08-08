@@ -23,6 +23,7 @@ public sealed class MinutesRateLimiterPolicy(IPartitionKeyCalculator partitionKe
     private readonly IPartitionKeyCalculator _partitionKeyCalculator = partitionKeyCalculator;
     private readonly IOptions<RateLimiterConfig> _options = options;
 
+    /// <iheritdoc />
     public override RateLimitPartition<string> GetPartition(HttpContext httpContext)
     {
         Guard.IsNotNull(httpContext);

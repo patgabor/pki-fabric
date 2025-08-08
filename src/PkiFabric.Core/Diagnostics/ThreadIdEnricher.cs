@@ -10,10 +10,10 @@ namespace PkiFabric.Core.Diagnostics;
 /// // This class enriches log events with the current managed thread ID,
 /// which can be useful for debugging and tracing issues related to multithreading in applications.
 /// </summary>
-internal sealed class ThreadIdEnricher : ILogEventEnricher
+public sealed class ThreadIdEnricher : ILogEventEnricher
 {
     private const string PropertyName = "ThreadId";
-
+    /// <inheritdoc/>
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
     {
         LogEventProperty prop = propertyFactory.CreateProperty(PropertyName, Environment.CurrentManagedThreadId);
