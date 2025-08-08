@@ -1,7 +1,7 @@
 ﻿// Copyright (c) PATGABOR. All rights reserved.
 // Licensed under the Apache License 2.0 license.
 
-namespace PkiFabric.Core.Helpers;
+namespace PkiFabric.Core.Cryptography;
 
 /// <summary>
 /// Represents a Subject Alternative Name (SAN) directory name using a distinguished name string.

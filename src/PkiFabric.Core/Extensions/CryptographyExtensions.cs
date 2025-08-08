@@ -51,6 +51,7 @@ public static class CryptographyExtensions
             return false;
         }
     }
+
     /// <summary>
     /// Attempts to parse a PEM-encoded string into an X.509 <see cref="BcX509.X509Certificate"/> object.
     /// </summary>
@@ -79,6 +80,7 @@ public static class CryptographyExtensions
             return false;
         }
     }
+
     /// <summary>
     /// Attempts to parse a PEM-encoded string into a public key as an <see cref="AsymmetricKeyParameter"/>.
     /// </summary>
@@ -107,6 +109,7 @@ public static class CryptographyExtensions
             return false;
         }
     }
+
     /// <summary>
     /// Attempts to parse a PEM-encoded string into a private key pair as an <see cref="AsymmetricCipherKeyPair"/>.
     /// </summary>
@@ -126,18 +129,23 @@ public static class CryptographyExtensions
         {
             using StringReader reader = new(@this);
 
-            PemReader pemReader;
-            if (password is null)
+            switch (password)
             {
-                pemReader = new(reader);
-            }
-            else
-            {
-                pemReader = new(reader, new PasswordProxy(password));
-            }
+                case null:
+                {
+                    PemReader pemReader = new(reader);
+                    privateKey = pemReader.ReadObject() as AsymmetricCipherKeyPair;
+                    return privateKey is not null;
+                }
 
-            privateKey = pemReader.ReadObject() as AsymmetricCipherKeyPair;
-            return privateKey is not null;
+                default:
+                {
+                    using PasswordProxy passwordProxy = new(password);
+                    PemReader pemReader = new(reader, passwordProxy);
+                    privateKey = pemReader.ReadObject() as AsymmetricCipherKeyPair;
+                    return privateKey is not null;
+                }
+            }
         }
         catch (Exception x) when (x is PasswordException or PemException or IOException)
         {

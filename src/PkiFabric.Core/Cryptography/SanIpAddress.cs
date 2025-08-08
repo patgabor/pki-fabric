@@ -5,7 +5,7 @@ using System.Net;
 
 using Destructurama.Attributed;
 
-namespace PkiFabric.Core.Helpers;
+namespace PkiFabric.Core.Cryptography;
 
 /// <summary>
 /// Represents a Subject Alternative Name (SAN) IP address.

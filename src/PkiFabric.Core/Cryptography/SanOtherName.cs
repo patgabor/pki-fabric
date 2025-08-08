@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 
 using PkiFabric.Core.Diagnostics;
 
-namespace PkiFabric.Core.Helpers;
+namespace PkiFabric.Core.Cryptography;
 
 /// <summary>
 /// Represents a Subject Alternative Name (SAN) Other Name type, which includes a type identifier (OID)

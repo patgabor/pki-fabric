@@ -5,10 +5,10 @@ using System.Net;
 using System.Net.Mail;
 using System.Security.Cryptography;
 
-using Microsoft.AspNetCore.Http.HttpResults;
-
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
+
+using PkiFabric.Core.Cryptography;
 
 namespace PkiFabric.Core.Helpers;
 

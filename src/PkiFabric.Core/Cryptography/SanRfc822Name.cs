@@ -5,7 +5,7 @@ using System.Net.Mail;
 
 using Destructurama.Attributed;
 
-namespace PkiFabric.Core.Helpers;
+namespace PkiFabric.Core.Cryptography;
 
 /// <summary>
 /// Represents a Subject Alternative Name (SAN) RFC 822 name, typically an email address.

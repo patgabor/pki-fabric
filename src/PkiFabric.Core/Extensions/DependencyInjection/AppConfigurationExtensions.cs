@@ -37,53 +37,53 @@ public static class AppConfigurationExtensions
     /// <summary>
     /// Adds the default exception handler and problem details services to the application.
     /// </summary>
-    public static IServiceCollection AddApplicationExceptionHandler(this IServiceCollection services)
+    public static IServiceCollection AddApplicationExceptionHandler(this IServiceCollection @this)
     {
-        Guard.IsNotNull(services);
+        Guard.IsNotNull(@this);
 
-        _ = services.AddProblemDetails();
-        _ = services.AddExceptionHandler<DefaultExceptionHandler>();
+        _ = @this.AddProblemDetails();
+        _ = @this.AddExceptionHandler<DefaultExceptionHandler>();
 
-        return services;
+        return @this;
     }
 
     /// <summary>
     /// Uses middleware for the default exception handler and problem details services.
     /// </summary>
-    public static IApplicationBuilder UseApplicationExceptionHandler(this IApplicationBuilder app)
+    public static IApplicationBuilder UseApplicationExceptionHandler(this IApplicationBuilder @this)
     {
-        Guard.IsNotNull(app);
+        Guard.IsNotNull(@this);
 
-        _ = app.UseExceptionHandler();
-        _ = app.UseStatusCodePages();
+        _ = @this.UseExceptionHandler();
+        _ = @this.UseStatusCodePages();
 
-        return app;
+        return @this;
     }
 
     /// <summary>
     /// Uses the default logger middleware of the application.
     /// </summary>
-    public static IApplicationBuilder UseApplicationLogging(this IApplicationBuilder app)
+    public static IApplicationBuilder UseApplicationLogging(this IApplicationBuilder @this)
     {
-        Guard.IsNotNull(app);
+        Guard.IsNotNull(@this);
 
-        return app.UseSerilogRequestLogging();
+        return @this.UseSerilogRequestLogging();
     }
 
     /// <summary>
     /// Provides logging functionality for HTTP client requests, including start, stop, and failure events.
     /// </summary>
-    public static IHttpClientBuilder UseApplicationLogging(this IHttpClientBuilder client)
+    public static IHttpClientBuilder UseApplicationLogging(this IHttpClientBuilder @this)
     {
-        Guard.IsNotNull(client);
+        Guard.IsNotNull(@this);
 
-        _ = client.RemoveAllLoggers();
+        _ = @this.RemoveAllLoggers();
 
-        _ = client.Services.AddExceptionSummarizer(static builder => builder.AddHttpProvider());
-        _ = client.Services.AddResilienceEnricher();
+        _ = @this.Services.AddExceptionSummarizer(static builder => builder.AddHttpProvider());
+        _ = @this.Services.AddResilienceEnricher();
 
-        client.Services.TryAddScoped<HttpClientLogger>();
-        return client.AddLogger<HttpClientLogger>(wrapHandlersPipeline: false);
+        @this.Services.TryAddScoped<HttpClientLogger>();
+        return @this.AddLogger<HttpClientLogger>(wrapHandlersPipeline: false);
     }
 
     private const string HoursPolicyName = "RateLimiter_Hours";
@@ -92,12 +92,12 @@ public static class AppConfigurationExtensions
     /// <summary>
     /// Provides extension methods for registering rate limiting in the application.
     /// </summary>
-    public static IHostBuilder AddApplicationRateLimiting(this IHostBuilder host)
+    public static IHostBuilder AddApplicationRateLimiting(this IHostBuilder @this)
     {
-        Guard.IsNotNull(host);
+        Guard.IsNotNull(@this);
 
         // Register the rate limiter configuration
-        return host.ConfigureServices(static (context, services) =>
+        return @this.ConfigureServices(static (context, services) =>
         {
             IConfigurationSection section = context.Configuration.GetSection(RateLimiterConfig.SectionName);
             OptionsBuilder<RateLimiterConfig> optionsBuilder = services.AddOptionsWithValidateOnStart<RateLimiterConfig>();
@@ -120,20 +120,20 @@ public static class AppConfigurationExtensions
     /// <summary>
     /// Configures logging for the service, including Serilog and other logging providers.
     /// </summary>
-    /// <param name="hostBuilder">The host builder to configure logging for.</param>
+    /// <param name="this">The host builder to configure logging for.</param>
     /// <returns>The configured <see cref="IHostBuilder"/> for chaining.</returns>
-    public static IHostBuilder AddApplicationLogging(this IHostBuilder hostBuilder)
+    public static IHostBuilder AddApplicationLogging(this IHostBuilder @this)
     {
-        Guard.IsNotNull(hostBuilder);
+        Guard.IsNotNull(@this);
 
         // Configure logging here, e.g., add console, debug, etc.
-        _ = hostBuilder.ConfigureLogging(static logging => logging.ClearProviders());
+        _ = @this.ConfigureLogging(static logging => logging.ClearProviders());
 
         // Add logging services
-        _ = hostBuilder.ConfigureServices(static (context, services) => services.AddHttpContextAccessor());
+        _ = @this.ConfigureServices(static (context, services) => services.AddHttpContextAccessor());
 
         // Add serilog as the logging provider
-        return hostBuilder.UseSerilog(static (context, serilog) =>
+        return @this.UseSerilog(static (context, serilog) =>
         {
             _ = serilog.MinimumLevel.Verbose();
             _ = serilog.MinimumLevel.Override(nameof(System), LogEventLevel.Warning);
@@ -173,107 +173,107 @@ public static class AppConfigurationExtensions
     /// <summary>
     /// Enriches Serilog log events with the current active thread count.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithThreadCount(this LoggerEnrichmentConfiguration configuration)
-        => configuration.With<ThreadCountEnricher>();
+    public static LoggerConfiguration WithThreadCount(this LoggerEnrichmentConfiguration @this)
+        => @this.With<ThreadCountEnricher>();
 
     /// <summary>
     /// Enriches Serilog log events with the current active thread Id.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithThreadId(this LoggerEnrichmentConfiguration configuration)
-        => configuration.With<ThreadIdEnricher>();
+    public static LoggerConfiguration WithThreadId(this LoggerEnrichmentConfiguration @this)
+        => @this.With<ThreadIdEnricher>();
 
     /// <summary>
     /// Enriches Serilog log events with the current correlation ID from the HTTP context, if available.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithCorrelationId(this LoggerEnrichmentConfiguration configuration)
-        => configuration.With<CorrelationIdEnricher>();
+    public static LoggerConfiguration WithCorrelationId(this LoggerEnrichmentConfiguration @this)
+        => @this.With<CorrelationIdEnricher>();
 
     /// <summary>
     /// Enriches Serilog log events with the client IP address from the HTTP context, if available.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithClientIp(this LoggerEnrichmentConfiguration configuration)
-        => configuration.With<ClientIpEnricher>();
+    public static LoggerConfiguration WithClientIp(this LoggerEnrichmentConfiguration @this)
+        => @this.With<ClientIpEnricher>();
 
     /// <summary>
     /// Enriches Serilog log events with the assembly name of the entry or executing assembly.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithAssemblyName(this LoggerEnrichmentConfiguration configuration)
+    public static LoggerConfiguration WithAssemblyName(this LoggerEnrichmentConfiguration @this)
     {
         const string FallbackName = "Unknown";
         const string Property = "AssemblyName";
 
-        return configuration.WithProperty(Property, WorkerAssembly.GetName().Name ?? FallbackName);
+        return @this.WithProperty(Property, WorkerAssembly.GetName().Name ?? FallbackName);
     }
 
     /// <summary>
     /// Enriches Serilog log events with the assembly version of the entry or executing assembly.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithAssemblyVersion(this LoggerEnrichmentConfiguration configuration)
+    public static LoggerConfiguration WithAssemblyVersion(this LoggerEnrichmentConfiguration @this)
     {
         const string FallbackVersion = "Unknown";
         const int FieldCount = 3;
         const string Property = "AssemblyVersion";
 
-        return configuration.WithProperty(Property, WorkerAssembly.GetName().Version?.ToString(FieldCount) ?? FallbackVersion);
+        return @this.WithProperty(Property, WorkerAssembly.GetName().Version?.ToString(FieldCount) ?? FallbackVersion);
     }
 
     /// <summary>
     /// Enriches Serilog log events with the runtime environment.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithHostEnvironment(this LoggerEnrichmentConfiguration configuration)
-        => configuration.With<HostEnvironmentEnricher>();
+    public static LoggerConfiguration WithHostEnvironment(this LoggerEnrichmentConfiguration @this)
+        => @this.With<HostEnvironmentEnricher>();
 
     /// <summary>
     /// Enriches Serilog log events with the machine name.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithMachineName(this LoggerEnrichmentConfiguration configuration)
-        => configuration.With<MachineNameEnricher>();
+    public static LoggerConfiguration WithMachineName(this LoggerEnrichmentConfiguration @this)
+        => @this.With<MachineNameEnricher>();
 
     /// <summary>
     /// Enriches Serilog log events with the user name and domain.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithUserName(this LoggerEnrichmentConfiguration configuration)
-        => configuration.With<UserNameEnricher>();
+    public static LoggerConfiguration WithUserName(this LoggerEnrichmentConfiguration @this)
+        => @this.With<UserNameEnricher>();
 
     /// <summary>
     /// Enriches Serilog log events with the allocated memory.
     /// </summary>
-    /// <param name="configuration">The logger enrichment configuration.</param>
+    /// <param name="this">The logger enrichment configuration.</param>
     /// <returns>The logger configuration for chaining.</returns>
-    public static LoggerConfiguration WithMemoryUsage(this LoggerEnrichmentConfiguration configuration)
-        => configuration.With<MemoryUsageEnricher>();
+    public static LoggerConfiguration WithMemoryUsage(this LoggerEnrichmentConfiguration @this)
+        => @this.With<MemoryUsageEnricher>();
 
     /// <summary>
     /// Adds application settings from JSON files and environment variables to the host builder's configuration.
     /// </summary>
-    /// <param name="hostBuilder">The host builder to configure.</param>
+    /// <param name="this">The host builder to configure.</param>
     /// <param name="optionalJson">Whether the JSON configuration files are optional. Default is false.</param>
     /// <param name="reloadOnChangeJson">Whether to reload configuration when JSON files change. Default is false.</param>
     /// <param name="envVarPrefix">An optional prefix for environment variables to include.</param>
     /// <returns>The configured <see cref="IHostBuilder"/> for chaining.</returns>
-    public static IHostBuilder AddApplicationSettings(this IHostBuilder hostBuilder, bool optionalJson = false, bool reloadOnChangeJson = false, string? envVarPrefix = null)
+    public static IHostBuilder AddApplicationSettings(this IHostBuilder @this, bool optionalJson = false, bool reloadOnChangeJson = false, string? envVarPrefix = null)
     {
-        Guard.IsNotNull(hostBuilder);
+        Guard.IsNotNull(@this);
 
-        return hostBuilder.ConfigureAppConfiguration((context, config) =>
+        return @this.ConfigureAppConfiguration((context, config) =>
         {
             _ = config.SetBasePath(AppContext.BaseDirectory);
             _ = config.AddJsonFile("appsettings.json", optionalJson, reloadOnChangeJson);

@@ -3,7 +3,7 @@
 
 using System.Collections.Immutable;
 
-namespace PkiFabric.Core.Helpers;
+namespace PkiFabric.Core.Cryptography;
 
 /// <summary>
 /// Represents a Subject Alternative Name (SAN) X.400 address.

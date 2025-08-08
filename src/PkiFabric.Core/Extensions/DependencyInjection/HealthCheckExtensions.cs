@@ -31,41 +31,41 @@ public static class HealthCheckExtensions
     }
 
     /// <summary>
-    /// Maps health check endpoints for readiness and startup checks to the specified <paramref name="endpoints"/> route builder.
+    /// Maps health check endpoints for readiness and startup checks to the specified <paramref name="this"/> route builder.
     /// The endpoints are exposed on the given <paramref name="managementPort"/> (default: "*:8080").
     /// </summary>
-    /// <param name="endpoints">The endpoint route builder to map health check endpoints to.</param>
+    /// <param name="this">The endpoint route builder to map health check endpoints to.</param>
     /// <param name="managementPort">The host and port to require for the health check endpoints (default: "*:8080").</param>
     /// <returns>The <see cref="IEndpointRouteBuilder"/> for chaining.</returns>
-    public static IEndpointRouteBuilder MapHealthCheckEndpoints(this IEndpointRouteBuilder endpoints,
+    public static IEndpointRouteBuilder MapHealthCheckEndpoints(this IEndpointRouteBuilder @this,
         string managementPort = "*:8080")
     {
-        Guard.IsNotNull(endpoints);
+        Guard.IsNotNull(@this);
         Guard.IsNotNullOrWhiteSpace(managementPort);
 
-        _ = endpoints.MapHealthChecks("/healthz/ready", new HealthCheckOptions
+        _ = @this.MapHealthChecks("/healthz/ready", new HealthCheckOptions
         {
             Predicate = static hc => hc.Tags.Contains(HealthCheckKinds.Readiness)
         }).RequireHost(managementPort);
 
-        _ = endpoints.MapHealthChecks("/healthz/startup", new HealthCheckOptions
+        _ = @this.MapHealthChecks("/healthz/startup", new HealthCheckOptions
         {
             Predicate = static hc => hc.Tags.Contains(HealthCheckKinds.Startup)
         }).RequireHost(managementPort);
 
-        return endpoints;
+        return @this;
     }
 
     /// <summary>
     /// Adds health checks for application startup lifecycle.
     /// </summary>
-    /// <param name="builder">The service collection to add health checks to.</param>
+    /// <param name="this">The service collection to add health checks to.</param>
     /// <returns>The <see cref="IHealthChecksBuilder"/> for chaining.</returns>
-    public static IHealthChecksBuilder AddStartupHealthChecks(this IServiceCollection builder)
+    public static IHealthChecksBuilder AddStartupHealthChecks(this IServiceCollection @this)
     {
-        Guard.IsNotNull(builder);
+        Guard.IsNotNull(@this);
 
-        return builder.AddHealthChecks()
+        return @this.AddHealthChecks()
             .AddApplicationLifecycleHealthCheck(
                 HealthCheckKinds.Readiness, HealthCheckKinds.Startup, HealthCheckLabels.Lifecycle);
     }
@@ -74,26 +74,26 @@ public static class HealthCheckExtensions
     /// Adds health checks for core system resources such as CPU and memory utilization.
     /// Allows configuration of degraded and unhealthy thresholds for CPU and memory usage.
     /// </summary>
-    /// <param name="builder">The service collection to add health checks to.</param>
+    /// <param name="this">The service collection to add health checks to.</param>
     /// <param name="degradedCpuPercentage">The CPU usage percentage at which the health check reports degraded status (default: 80).</param>
     /// <param name="unhealthyCpuPercentage">The CPU usage percentage at which the health check reports unhealthy status (default: 90).</param>
     /// <param name="degradedMemoryPercentage">The memory usage percentage at which the health check reports degraded status (default: 80).</param>
     /// <param name="unhealthyMemoryPercentage">The memory usage percentage at which the health check reports unhealthy status (default: 90).</param>
     /// <returns>The <see cref="IHealthChecksBuilder"/> for chaining.</returns>
-    public static IHealthChecksBuilder AddCoreHealthChecks(this IServiceCollection builder,
+    public static IHealthChecksBuilder AddCoreHealthChecks(this IServiceCollection @this,
         double degradedCpuPercentage = 80,
         double unhealthyCpuPercentage = 90,
         double degradedMemoryPercentage = 80,
         double unhealthyMemoryPercentage = 90)
     {
-        Guard.IsNotNull(builder);
+        Guard.IsNotNull(@this);
 
         Guard.IsBetweenOrEqualTo(degradedCpuPercentage, 0, 100);
         Guard.IsBetweenOrEqualTo(unhealthyCpuPercentage, degradedCpuPercentage, 100);
         Guard.IsBetweenOrEqualTo(degradedMemoryPercentage, 0, 100);
         Guard.IsBetweenOrEqualTo(unhealthyMemoryPercentage, degradedMemoryPercentage, 100);
 
-        return builder.AddHealthChecks()
+        return @this.AddHealthChecks()
             .AddResourceUtilizationHealthCheck(
                 resources =>
                 {
