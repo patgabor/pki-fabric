@@ -21,12 +21,7 @@ public sealed class MsSecurityObjectSid : IEquatable<MsSecurityObjectSid>
     /// <summary>
     /// OID for the NTDS CA Security Extension.
     /// </summary>
-    public const string NtdsCaSecurityExtensionOid = "1.3.6.1.4.1.311.25.2";
-
-    /// <summary>
-    /// OID for the NTDS Object SID.
-    /// </summary>
-    public const string NtdsObjectSidOid = "1.3.6.1.4.1.311.25.2.1";
+    public const string NtdsCaSecurityExtension = "1.3.6.1.4.1.311.25.2";
 
     private readonly byte[] _sidBytes;
 
@@ -54,7 +49,9 @@ public sealed class MsSecurityObjectSid : IEquatable<MsSecurityObjectSid>
         Guard.IsNotEmpty(sidBytes);
 
         if (!IsValidBinarySid(sidBytes))
+        {
             throw new ArgumentException("Invalid SID binary format.", nameof(sidBytes));
+        }
 
         _sidBytes = (byte[])sidBytes.Clone(); // store own copy
     }
@@ -67,7 +64,38 @@ public sealed class MsSecurityObjectSid : IEquatable<MsSecurityObjectSid>
     /// <summary>
     /// Returns the canonical S-R-I-... SID string representation.
     /// </summary>
-    public override string ToString() => ToSidString(_sidBytes);
+    public override string ToString()
+    {
+        byte revision = _sidBytes[0];
+        byte subAuthCount = _sidBytes[1];
+
+        ulong identifierAuthority =
+            ((ulong)_sidBytes[2] << 40) |
+            ((ulong)_sidBytes[3] << 32) |
+            ((ulong)_sidBytes[4] << 24) |
+            ((ulong)_sidBytes[5] << 16) |
+            ((ulong)_sidBytes[6] << 8) |
+            _sidBytes[7];
+
+        var sb = new StringBuilder();
+        sb.Append("S-")
+            .Append(revision)
+            .Append('-')
+            .Append(identifierAuthority);
+
+        for (int i = 0; i < subAuthCount; i++)
+        {
+            int offset = 8 + i * 4;
+            uint subAuth = (uint)(_sidBytes[offset]
+                | (_sidBytes[offset + 1] << 8)
+                | (_sidBytes[offset + 2] << 16)
+                | (_sidBytes[offset + 3] << 24));
+            sb.Append('-')
+                .Append(subAuth);
+        }
+
+        return sb.ToString();
+    }
 
     /// <inheritdoc/>
     public bool Equals(MsSecurityObjectSid? other)
@@ -80,7 +108,7 @@ public sealed class MsSecurityObjectSid : IEquatable<MsSecurityObjectSid>
     /// <inheritdoc/>
     public override int GetHashCode()
     {
-        HashCode hash = new ();
+        HashCode hash = new();
         hash.AddBytes(_sidBytes);
         return hash.ToHashCode();
     }
@@ -107,39 +135,6 @@ public sealed class MsSecurityObjectSid : IEquatable<MsSecurityObjectSid>
         byte subAuthCount = data[1];
         int expectedLength = 8 + subAuthCount * 4;
         return data.Length == expectedLength;
-    }
-
-    private static string ToSidString(byte[] data)
-    {
-        byte revision = data[0];
-        byte subAuthCount = data[1];
-
-        ulong identifierAuthority =
-            ((ulong)data[2] << 40) |
-            ((ulong)data[3] << 32) |
-            ((ulong)data[4] << 24) |
-            ((ulong)data[5] << 16) |
-            ((ulong)data[6] << 8) |
-            data[7];
-
-        var sb = new StringBuilder();
-        sb.Append("S-")
-            .Append(revision)
-            .Append('-')
-            .Append(identifierAuthority);
-
-        for (int i = 0; i < subAuthCount; i++)
-        {
-            int offset = 8 + i * 4;
-            uint subAuth = (uint)(data[offset]
-                | (data[offset + 1] << 8)
-                | (data[offset + 2] << 16)
-                | (data[offset + 3] << 24));
-            sb.Append('-')
-                .Append(subAuth);
-        }
-
-        return sb.ToString();
     }
 
     private static byte[] ParseSidString(string sidString)

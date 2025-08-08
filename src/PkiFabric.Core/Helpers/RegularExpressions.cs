@@ -14,7 +14,7 @@ internal static partial class RegularExpressions
 
     [GeneratedRegex(
         @"^S-(?:[0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])-(?:0|[1-9][0-9]{0,15})(?:-(?:0|[1-9][0-9]{0,9})){1,255}$",
-        RegexOptions.CultureInvariant, ShortTimeout)]
+        RegexOptions.CultureInvariant, matchTimeoutMilliseconds: ShortTimeout)]
     internal static partial Regex Sid();
 
     [GeneratedRegex(

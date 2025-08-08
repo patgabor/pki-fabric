@@ -1,16 +1,26 @@
 ﻿// Copyright (c) PATGABOR. All rights reserved.
 // Licensed under the Apache License 2.0 license.
 
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 
+using Org.BouncyCastle.Asn1;
+using Org.BouncyCastle.Asn1.EdEC;
+using Org.BouncyCastle.Asn1.Pkcs;
+using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Math.EC.Rfc8032;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 
+using PkiFabric.Core.Cryptography;
 using PkiFabric.Core.Helpers;
 
 using BcX509 = Org.BouncyCastle.X509;
+using Oid = System.Security.Cryptography.Oid;
 
 namespace PkiFabric.Core.Extensions;
 
@@ -152,5 +162,175 @@ public static class CryptographyExtensions
             privateKey = null;
             return false;
         }
+    }
+
+    public static bool TryGetSubject(
+        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
+        out ImmutableDictionary<Oid, ImmutableArray<string>> subject)
+    {
+        ImmutableDictionaryBuilder<Oid, ImmutableArray<string>> builder =
+            new(OidEqualityComparer.Default);
+
+        if (@this is null)
+        {
+            subject = builder.ToImmutable();
+            return false;
+        }
+
+        CertificationRequestInfo certificationRequestInfo = @this.GetCertificationRequestInfo();
+        IList<DerObjectIdentifier> oids = certificationRequestInfo.Subject.GetOidList();
+
+        foreach (DerObjectIdentifier oid in oids)
+        {
+            IList<string> values = certificationRequestInfo.Subject.GetValueList(oid);
+            builder.Add(new Oid(oid.Id), [.. values]);
+        }
+
+        subject = builder.ToImmutable();
+        return true;
+    }
+
+    public static bool TryGetSubjectAlgorithm(
+        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
+        [NotNullWhen(true)] out Oid? algorithm)
+    {
+        if (@this is null)
+        {
+            algorithm = null;
+            return false;
+        }
+
+        CertificationRequestInfo certificationRequestInfo = @this.GetCertificationRequestInfo();
+        SubjectPublicKeyInfo subjectPublicKeyInfo = certificationRequestInfo.SubjectPublicKeyInfo;
+        AlgorithmIdentifier algorithmIdentifier = subjectPublicKeyInfo.Algorithm;
+        DerObjectIdentifier oid = algorithmIdentifier.Algorithm;
+
+        algorithm = new Oid(oid.Id);
+        return true;
+    }
+
+    public static bool TryGetSignatureAlgorithm(
+        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
+        [NotNullWhen(true)] out Oid? algorithm)
+    {
+        if (@this is null)
+        {
+            algorithm = null;
+            return false;
+        }
+
+        AlgorithmIdentifier algorithmIdentifier = @this.SignatureAlgorithm;
+        DerObjectIdentifier oid = algorithmIdentifier.Algorithm;
+        algorithm = new Oid(oid.Id);
+        return true;
+    }
+
+    public static bool TryGetPublicKeyParameters(
+        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
+        [NotNullWhen(true)] out PublicKeyParams? algorithm)
+    {
+        if (@this is null)
+        {
+            algorithm = null;
+            return false;
+        }
+
+        AsymmetricKeyParameter key = @this.GetPublicKey();
+
+        if (key is DsaKeyParameters dsa)
+        {
+            algorithm = new PublicKeyParams(new Oid(X9ObjectIdentifiers.IdDsa.Id), dsa.Parameters.P.BitLength);
+            return true;
+        }
+        else if (key is RsaKeyParameters rsa)
+        {
+            algorithm = new PublicKeyParams(new Oid(PkcsObjectIdentifiers.RsaEncryption.Id), rsa.Modulus.BitLength);
+            return true;
+        }
+        else if (key is ECPublicKeyParameters ec)
+        {
+            algorithm = new PublicKeyParams(new Oid(ec.PublicKeyParamSet.Id), ec.Parameters.Curve.FieldSize);
+            return true;
+        }
+        else if (key is Ed25519PublicKeyParameters)
+        {
+            algorithm = new PublicKeyParams(new Oid(EdECObjectIdentifiers.id_Ed25519.Id), Ed25519.PublicKeySize);
+            return true;
+        }
+        else if (key is Ed448PublicKeyParameters)
+        {
+            algorithm = new PublicKeyParams(new Oid(EdECObjectIdentifiers.id_Ed448.Id), Ed448.PublicKeySize);
+            return true;
+        }
+
+        algorithm = null;
+        return false;
+    }
+
+    public static bool TryGetSubjectAltNames(
+        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
+        out ImmutableArray<ISubjectAltName> subjectAltNames)
+    {
+        ImmutableArrayBuilder<ISubjectAltName> builder = [];
+        if (@this is null)
+        {
+            subjectAltNames = builder.ToImmutable();
+            return false;
+        }
+
+        CertificationRequestInfo certificationRequestInfo = @this.GetCertificationRequestInfo();
+        Asn1Set attributes = certificationRequestInfo.Attributes;
+
+        if (attributes.Count > 0)
+        {
+            DerSequence? pkcs9Extensions = attributes.OfType<DerSequence>()
+                .FirstOrDefault(
+                    static seq => seq.OfType<DerObjectIdentifier>().Any(
+                        PkcsObjectIdentifiers.Pkcs9AtExtensionRequest.Equals));
+            if (pkcs9Extensions is not null)
+            {
+                DerSet? extensions = pkcs9Extensions.OfType<DerSet>().FirstOrDefault();
+                if (extensions is not null)
+                {
+                    DerOctetString? octets = extensions
+                        .OfType<DerSequence>()
+                        .First()
+                        .GetAsn1ObjectById<DerOctetString>(X509Extensions.SubjectAlternativeName);
+
+                    if (octets is not null)
+                    {
+                        Asn1Object? parsedObject = Asn1Object.FromByteArray(octets.GetOctets());
+                        GeneralName[] generalNames = GeneralNames.GetInstance(parsedObject).GetNames();
+
+                        foreach (GeneralName item in generalNames)
+                        {
+                            builder.Add(SubjectAltNameAdapter.Default.Adapt(item));
+                        }
+                    }
+                }
+            }
+        }
+
+        subjectAltNames = builder.ToImmutable();
+        return true;
+    }
+
+    private static T? GetAsn1ObjectById<T>(
+        this DerSequence @this, DerObjectIdentifier oid) where T : Asn1Object
+    {
+        if (@this.OfType<DerObjectIdentifier>().Any(oid.Equals))
+        {
+            return @this.OfType<T>().First();
+        }
+
+        foreach (DerSequence subSequence in @this.OfType<DerSequence>())
+        {
+            T? value = subSequence.GetAsn1ObjectById<T>(oid);
+            if (value is not null)
+            {
+                return value;
+            }
+        }
+        return null;
     }
 }
