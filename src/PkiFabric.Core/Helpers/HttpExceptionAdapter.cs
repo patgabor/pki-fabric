@@ -125,11 +125,11 @@ public sealed class HttpExceptionAdapter : IAdapter<Exception, ProblemHttpResult
     /// the mapped or default status, title, and type references. Callers should be aware that
     /// the exception's original message will be exposed in the HTTP response.
     /// </remarks>
-    public ProblemHttpResult Adapt(Exception exception)
+    public ProblemHttpResult Adapt(Exception source)
         => TypedResults.Problem(
-            detail: exception.Message,
-            statusCode: StatusCode(exception),
-            title: Title(exception),
-            type: ErrorType(exception),
+            detail: source.Message,
+            statusCode: StatusCode(source),
+            title: Title(source),
+            type: ErrorType(source),
             extensions: null);
 }

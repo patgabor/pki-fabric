@@ -39,11 +39,11 @@ public sealed class OidFriendlyNameAdapter : IAdapter<string, Oid>
     /// The method uses ordinal string comparison for identifying Ed25519 and Ed448 and relies on 
     /// .NET cryptography APIs for other friendly names.
     /// </remarks>
-    public Oid Adapt(string friendlyName) => friendlyName switch
+    public Oid Adapt(string source) => source switch
     {
         var s when string.Equals(s, "Ed25519", StringComparison.Ordinal) => s_ed25519,
         var s when string.Equals(s, "Ed448", StringComparison.Ordinal) => s_ed448,
 
-        _ => Oid.FromFriendlyName(friendlyName, OidGroup.All)
+        _ => Oid.FromFriendlyName(source, OidGroup.All)
     };
 }

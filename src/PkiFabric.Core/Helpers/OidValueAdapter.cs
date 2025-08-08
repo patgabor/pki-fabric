@@ -40,11 +40,11 @@ public sealed class OidValueAdapter : IAdapter<string, Oid>
     /// to produce the <see cref="Oid"/> instances.  
     /// Be ready to handle exceptions if the OID string is malformed or unsupported.
     /// </remarks>
-    public Oid Adapt(string oidValue) => oidValue switch
+    public Oid Adapt(string source) => source switch
     {
         var s when string.Equals(s, s_ed25519.Value, StringComparison.Ordinal) => s_ed25519,
         var s when string.Equals(s, s_ed448.Value, StringComparison.Ordinal) => s_ed448,
 
-        _ => Oid.FromOidValue(oidValue, OidGroup.All)
+        _ => Oid.FromOidValue(source, OidGroup.All)
     };
 }
