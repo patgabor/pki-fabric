@@ -3,6 +3,8 @@
 
 using System.Security.Cryptography;
 
+using PkiFabric.Core.Diagnostics;
+
 namespace PkiFabric.Core.Cryptography;
 
 /// <summary>
@@ -13,6 +15,7 @@ public sealed class PublicKeyParams(Oid algorithm, int keyLength)
     /// <summary>
     /// Gets the OID representing the algorithm of the public key.
     /// </summary>
+    [LogAsOid]
     public Oid Algorithm { get; } = algorithm;
     /// <summary>
     /// Gets the asymmetric key parameter representing the public key.
