@@ -164,6 +164,12 @@ public static class CryptographyExtensions
         }
     }
 
+    /// <summary>
+    /// Attempts to extract subject Distinguished Names (DN) from a PKCS#10 certification request.
+    /// </summary>
+    /// <param name="this">The certification request.</param>
+    /// <param name="subject">When this method returns, contains the subject DN entries as an immutable dictionary mapping OIDs to arrays of string values.</param>
+    /// <returns><c>true</c> if the subject was successfully extracted; otherwise, <c>false</c>.</returns>
     public static bool TryGetSubject(
         [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
         out ImmutableDictionary<Oid, ImmutableArray<string>> subject)
@@ -190,7 +196,13 @@ public static class CryptographyExtensions
         return true;
     }
 
-    public static bool TryGetSubjectAlgorithm(
+    /// <summary>
+    /// Attempts to get the public key algorithm OID from a PKCS#10 certification request.
+    /// </summary>
+    /// <param name="this">The certification request.</param>
+    /// <param name="algorithm">When this method returns, contains the algorithm OID if successfully retrieved; otherwise, null.</param>
+    /// <returns><c>true</c> if the algorithm was successfully retrieved; otherwise, <c>false</c>.</returns>
+    public static bool TryGetPublicKeyAlgorithm(
         [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
         [NotNullWhen(true)] out Oid? algorithm)
     {
@@ -208,7 +220,12 @@ public static class CryptographyExtensions
         algorithm = new Oid(oid.Id);
         return true;
     }
-
+    /// <summary>
+    /// Attempts to get the signature algorithm OID from a PKCS#10 certification request.
+    /// </summary>
+    /// <param name="this">The certification request.</param>
+    /// <param name="algorithm">When this method returns, contains the signature algorithm OID if successfully retrieved; otherwise, null.</param>
+    /// <returns><c>true</c> if the signature algorithm was successfully retrieved; otherwise, <c>false</c>.</returns>
     public static bool TryGetSignatureAlgorithm(
         [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
         [NotNullWhen(true)] out Oid? algorithm)
@@ -224,7 +241,12 @@ public static class CryptographyExtensions
         algorithm = new Oid(oid.Id);
         return true;
     }
-
+    /// <summary>
+    /// Attempts to extract public key parameters such as algorithm OID and key size from a PKCS#10 certification request.
+    /// </summary>
+    /// <param name="this">The certification request.</param>
+    /// <param name="algorithm">When this method returns, contains the public key parameters if successfully retrieved; otherwise, null.</param>
+    /// <returns><c>true</c> if public key parameters were successfully retrieved; otherwise, <c>false</c>.</returns>
     public static bool TryGetPublicKeyParameters(
         [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
         [NotNullWhen(true)] out PublicKeyParams? algorithm)
@@ -266,7 +288,12 @@ public static class CryptographyExtensions
         algorithm = null;
         return false;
     }
-
+    /// <summary>
+    /// Attempts to extract Subject Alternative Names (SAN) from a PKCS#10 certification request.
+    /// </summary>
+    /// <param name="this">The PKCS#10 certification request.</param>
+    /// <param name="subjectAltNames">When this method returns, contains an immutable array of parsed SANs if successful; otherwise, empty.</param>
+    /// <returns>True if SANs were extracted; otherwise, false.</returns>
     public static bool TryGetSubjectAltNames(
         [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
         out ImmutableArray<ISubjectAltName> subjectAltNames)
@@ -315,6 +342,13 @@ public static class CryptographyExtensions
         return true;
     }
 
+    /// <summary>
+    /// Helper to retrieve an <see cref="Asn1Object"/> by OID from a <see cref="DerSequence"/> recursively.
+    /// </summary>
+    /// <typeparam name="T">The ASN.1 type to cast to.</typeparam>
+    /// <param name="this">Sequence to search.</param>
+    /// <param name="oid">Object Identifier to search for.</param>
+    /// <returns>The ASN.1 object if found; otherwise, null.</returns>
     private static T? GetAsn1ObjectById<T>(
         this DerSequence @this, DerObjectIdentifier oid) where T : Asn1Object
     {
