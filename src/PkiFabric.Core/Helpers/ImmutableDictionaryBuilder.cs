@@ -31,6 +31,18 @@ public readonly struct ImmutableDictionaryBuilder<TKey, TValue>(IEqualityCompare
     /// <exception cref="ArgumentException">Thrown when an element with the same key already exists.</exception>
     public void Add(KeyValuePair<TKey, TValue> item) => _builder.Add(item);
     /// <summary>
+    /// Gets or sets the element with the specified key.
+    /// </summary>
+    /// <returns>The element with the specified key.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="key"/> is null.</exception>
+    /// <exception cref="KeyNotFoundException">The property is retrieved and <paramref name="key"/> is not found.</exception>
+    /// <exception cref="NotSupportedException">The property is set and the <see cref="IDictionary{TKey, TValue}"/> is read-only.</exception>
+    public TValue this[TKey key]
+    {
+        get => _builder[key];
+        set => _builder[key] = value;
+    }
+    /// <summary>
     /// Creates an <see cref="ImmutableDictionary{TKey, TValue}"/> from the contents of this builder.
     /// </summary>
     /// <returns>An immutable dictionary containing all keys and values added to this builder.</returns>

@@ -10,17 +10,19 @@ using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math.EC.Rfc8032;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Security.Certificates;
 
 using PkiFabric.Core.Cryptography;
 using PkiFabric.Core.Helpers;
 
-using BcX509 = Org.BouncyCastle.X509;
 using Oid = System.Security.Cryptography.Oid;
+using X509Certificate = Org.BouncyCastle.X509.X509Certificate;
 
 namespace PkiFabric.Core.Extensions;
 
@@ -34,12 +36,107 @@ namespace PkiFabric.Core.Extensions;
 public static class CryptographyExtensions
 {
     /// <summary>
+    /// Computes the SHA-1 thumbprint of the given certificate using BouncyCastle's digest.
+    /// Throws if the certificate cannot be encoded.
+    /// </summary>
+    /// <param name="this">The certificate to hash.</param>
+    public static byte[] GetThumbprint(this X509Certificate @this)
+    {
+        try
+        {
+            byte[] encoded = @this.GetEncoded();
+
+            if (encoded.Length == 0)
+            {
+                throw new InvalidOperationException("Certificate encoding returned no data.");
+            }
+
+            Sha1Digest digest = new();
+            digest.BlockUpdate(encoded, 0, encoded.Length);
+
+            byte[] output = new byte[digest.GetDigestSize()];
+            digest.DoFinal(output, 0);
+
+            return output;
+        }
+        catch (CertificateEncodingException ex)
+        {
+            throw new InvalidOperationException("Failed to encode certificate to DER format.", ex);
+        }
+    }
+
+    /// <summary>
+    /// Attempts to parse a PFX/PKCS#12 byte array into an immutable dictionary
+    /// mapping BouncyCastle X509Certificates to their corresponding private keys (or null).
+    /// </summary>
+    /// <param name="this">The PFX file as a byte array.</param>
+    /// <param name="password">The PFX password.</param>
+    /// <param name="certificateKeyMap">Immutable dictionary of certificate/private key pairs (null key if none found).</param>
+    /// <returns>True on success, false if parsing fails.</returns>
+    public static bool TryParsePfx(
+        [NotNullWhen(true)] this byte[] @this,
+        string? password,
+        out ImmutableDictionary<X509Certificate, AsymmetricKeyParameter?> certificateKeyMap)
+    {
+        ImmutableDictionaryBuilder<X509Certificate, AsymmetricKeyParameter?> builder = [];
+        if (@this is null || @this.Length == 0)
+        {
+            certificateKeyMap = builder.ToImmutable();
+            return false; // Fail early if input is invalid
+        }
+
+        using var ms = new MemoryStream(@this);
+        Pkcs12Store store = new Pkcs12StoreBuilder().Build();
+        if (password is not null)
+        {
+            using PasswordProxy passwordProxy = new(password);
+            store.Load(ms, passwordProxy.GetPassword());
+        }
+        else
+        {
+            store.Load(ms, []);
+        }
+        foreach (string alias in store.Aliases)
+        {
+            if (store.IsKeyEntry(alias))
+            {
+                // Retrieve the certificate associated with this key
+                X509CertificateEntry[] certChain = store.GetCertificateChain(alias);
+                X509Certificate leafCert = certChain[0].Certificate;
+                AsymmetricKeyEntry entry = store.GetKey(alias);
+                AsymmetricKeyParameter privateKey = entry.Key;
+
+                // The rest are intermediates and roots with no private keys.
+                // we do not carea about them here.
+                builder[leafCert] = privateKey;
+            }
+            if (store.IsCertificateEntry(alias))
+            {
+                X509CertificateEntry entry = store.GetCertificate(alias);
+                X509Certificate certificate = entry.Certificate;
+
+                if (!builder.Any(pair => pair.Key.Equals(certificate)))
+                {
+                    // Add to the dictionary, using null for private keys if not available
+                    builder[certificate] = null;
+                }
+
+            }
+        }
+
+        certificateKeyMap = builder.ToImmutable();
+        return true;
+    }
+
+    /// <summary>
     /// Attempts to parse a PEM-encoded string into a <see cref="Pkcs10CertificationRequest"/> object.
     /// </summary>
     /// <param name="this">The PEM-encoded string representing a PKCS#10 certification request.</param>
     /// <param name="certificationRequest">When this method returns, contains the parsed <see cref="Pkcs10CertificationRequest"/> if parsing succeeded; otherwise, null.</param>
     /// <returns><c>true</c> if the string was successfully parsed into a <see cref="Pkcs10CertificationRequest"/>; otherwise, <c>false</c>.</returns>
-    public static bool TryParseToPkcs10([NotNullWhen(true)] this string? @this, [NotNullWhen(true)] out Pkcs10CertificationRequest? certificationRequest)
+    public static bool TryParseToPkcs10(
+        [NotNullWhen(true)] this string? @this,
+        [NotNullWhen(true)] out Pkcs10CertificationRequest? certificationRequest)
     {
         if (string.IsNullOrEmpty(@this))
         {
@@ -63,12 +160,14 @@ public static class CryptographyExtensions
     }
 
     /// <summary>
-    /// Attempts to parse a PEM-encoded string into an X.509 <see cref="BcX509.X509Certificate"/> object.
+    /// Attempts to parse a PEM-encoded string into an X.509 <see cref="X509Certificate"/> object.
     /// </summary>
     /// <param name="this">The PEM-encoded string representing an X.509 certificate.</param>
-    /// <param name="certificate">When this method returns, contains the parsed <see cref="BcX509.X509Certificate"/> if parsing succeeded; otherwise, null.</param>
+    /// <param name="certificate">When this method returns, contains the parsed <see cref="X509Certificate"/> if parsing succeeded; otherwise, null.</param>
     /// <returns><c>true</c> if the string was successfully parsed into a certificate; otherwise, <c>false</c>.</returns>
-    public static bool TryParseToCertificate([NotNullWhen(true)] this string? @this, [NotNullWhen(true)] out BcX509.X509Certificate? certificate)
+    public static bool TryParseToCertificate(
+        [NotNullWhen(true)] this string? @this,
+        [NotNullWhen(true)] out X509Certificate? certificate)
     {
         if (string.IsNullOrEmpty(@this))
         {
@@ -81,7 +180,7 @@ public static class CryptographyExtensions
             using StringReader reader = new(@this);
             PemReader pemReader = new(reader);
 
-            certificate = pemReader.ReadObject() as BcX509.X509Certificate;
+            certificate = pemReader.ReadObject() as X509Certificate;
             return certificate is not null;
         }
         catch (Exception x) when (x is PemException or IOException)
@@ -97,7 +196,9 @@ public static class CryptographyExtensions
     /// <param name="this">The PEM-encoded string representing a public key.</param>
     /// <param name="publicKey">When this method returns, contains the parsed <see cref="AsymmetricKeyParameter"/> if parsing succeeded; otherwise, null.</param>
     /// <returns><c>true</c> if the string was successfully parsed into a public key; otherwise, <c>false</c>.</returns>
-    public static bool TryParseToPublicKey([NotNullWhen(true)] this string? @this, [NotNullWhen(true)] out AsymmetricKeyParameter? publicKey)
+    public static bool TryParseToPublicKey(
+        [NotNullWhen(true)] this string? @this,
+        [NotNullWhen(true)] out AsymmetricKeyParameter? publicKey)
     {
         if (string.IsNullOrEmpty(@this))
         {
@@ -127,7 +228,10 @@ public static class CryptographyExtensions
     /// <param name="password">An optional password to decrypt the private key if it is encrypted; can be null for unencrypted keys.</param>
     /// <param name="privateKey">When this method returns, contains the parsed <see cref="AsymmetricCipherKeyPair"/> if parsing succeeded; otherwise, null.</param>
     /// <returns><c>true</c> if the string was successfully parsed into a private key; otherwise, <c>false</c>.</returns>
-    public static bool TryParseToPrivateKey([NotNullWhen(true)] this string? @this, string? password, [NotNullWhen(true)] out AsymmetricCipherKeyPair? privateKey)
+    public static bool TryParseToPrivateKey(
+        [NotNullWhen(true)] this string? @this,
+        string? password,
+        [NotNullWhen(true)] out AsymmetricCipherKeyPair? privateKey)
     {
         if (string.IsNullOrEmpty(@this))
         {
