@@ -4,12 +4,16 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+
+using CommunityToolkit.Diagnostics;
 
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.EdEC;
+using Org.BouncyCastle.Asn1.Nist;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Asn1.X509;
-using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -22,10 +26,6 @@ using Org.BouncyCastle.Security.Certificates;
 using PkiFabric.Core.Cryptography;
 using PkiFabric.Core.Helpers;
 
-using static System.Security.Cryptography.X509Certificates.DSACertificateExtensions;
-using static System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions;
-using static System.Security.Cryptography.X509Certificates.RSACertificateExtensions;
-
 using Oid = System.Security.Cryptography.Oid;
 using X509Certificate = Org.BouncyCastle.X509.X509Certificate;
 using X509Certificate2 = System.Security.Cryptography.X509Certificates.X509Certificate2;
@@ -37,6 +37,77 @@ namespace PkiFabric.Core.Extensions;
 /// </summary>
 public static class CryptographyExtensions
 {
+    private static readonly string s_temporaryPassword = Guid.NewGuid().ToString("N");
+    private static readonly byte[] s_testData = Encoding.UTF8.GetBytes("Test data for key verification");
+    /// <summary>
+    /// Creates a PKCS#12 (PFX) container from the given BouncyCastle <see cref="X509Certificate"/> 
+    /// and its associated private key, encrypting the private key bag using 3DES (Triple DES). 
+    /// The resulting PKCS#12 byte array can be stored, transmitted, or loaded into an 
+    /// <see cref="X509Certificate2"/> object.
+    /// </summary>
+    public static byte[] CreatePfxWithTripleDes(this X509Certificate @this, AsymmetricKeyParameter privateKey, string password)
+    {
+        Guard.IsTrue(privateKey.IsPrivate);
+        Guard.IsNotNullOrEmpty(password);
+        Guard.IsTrue(VerifyPrivateKeyMatchesCertificate(@this, privateKey));
+
+        Pkcs12StoreBuilder storeBuilder = new();
+        storeBuilder.SetUseDerEncoding(true);
+        storeBuilder.SetCertAlgorithm(PkcsObjectIdentifiers.PbewithShaAnd40BitRC2Cbc);
+        storeBuilder.SetKeyAlgorithm(PkcsObjectIdentifiers.PbeWithShaAnd3KeyTripleDesCbc);
+
+        Pkcs12Store store = storeBuilder.Build();
+
+        string alias = @this.SubjectDN.ToString(reverse: false, X509Name.DefaultSymbols);
+        X509CertificateEntry certEntry = new(@this);
+        AsymmetricKeyEntry keyEntry = new(privateKey);
+
+        // ONLY use SetKeyEntry - this automatically includes the certificate
+        // Do NOT call SetCertificateEntry when you have a private key
+        store.SetKeyEntry(alias, keyEntry, [certEntry]);
+
+        using MemoryStream stream = new();
+        store.Save(stream, password.ToCharArray(), new SecureRandom());
+        byte[] pfxBytes = stream.ToArray();
+
+        return pfxBytes; // needed only when BER: Pkcs12Utilities.ConvertToDefiniteLength
+    }
+    /// <summary>
+    /// Creates a PKCS#12 (PFX) container from the given BouncyCastle <see cref="X509Certificate"/> 
+    /// and its associated private key, encrypting the private key bag using AES‑256‑CBC.
+    /// The resulting PKCS#12 byte array can be securely stored, transmitted, or loaded into a 
+    /// <see cref="X509Certificate2"/> object in .NET.
+    /// </summary>
+    public static byte[] CreatePfxWithAes256(this X509Certificate @this, AsymmetricKeyParameter privateKey, string password)
+    {
+        Guard.IsTrue(privateKey.IsPrivate);
+        Guard.IsNotNullOrEmpty(password);
+        Guard.IsTrue(VerifyPrivateKeyMatchesCertificate(@this, privateKey));
+
+        Pkcs12StoreBuilder storeBuilder = new();
+        storeBuilder.SetUseDerEncoding(true);
+        // no encryption for certs
+        storeBuilder.SetCertAlgorithm(null);
+        // Specify a PKCS#5 Scheme 2 encryption for certs
+        storeBuilder.SetKeyAlgorithm(NistObjectIdentifiers.IdAes256Cbc, PkcsObjectIdentifiers.IdHmacWithSha256);
+
+        Pkcs12Store store = storeBuilder.Build();
+
+        string alias = @this.SubjectDN.ToString(reverse: false, X509Name.DefaultSymbols);
+        X509CertificateEntry certEntry = new(@this);
+        AsymmetricKeyEntry keyEntry = new(privateKey);
+
+        // ONLY use SetKeyEntry - this automatically includes the certificate
+        // Do NOT call SetCertificateEntry when you have a private key
+        store.SetKeyEntry(alias, keyEntry, [certEntry]);
+
+        using MemoryStream stream = new();
+        store.Save(stream, password.ToCharArray(), new SecureRandom());
+        byte[] pfxBytes = stream.ToArray();
+
+        return pfxBytes; // needed only when BER: Pkcs12Utilities.ConvertToDefiniteLength
+    }
+
     /// <summary>
     /// Converts a BouncyCastle <see cref="X509Certificate"/> to a .NET <see cref="X509Certificate2"/>.
     /// </summary>
@@ -44,12 +115,18 @@ public static class CryptographyExtensions
     {
         if (privateKey is null)
         {
-            return new X509Certificate2(@this.CertificateStructure.GetEncoded(Asn1Encodable.Der));
+            byte[] certificate = @this.CertificateStructure.GetEncoded(Asn1Encodable.Der);
+            return new X509Certificate2(certificate);
         }
-        // TODO: Handle private key if provided
-        // may convert to pfx then read into X509Certificate2
-        byte[] encoded = @this.GetEncoded();
-        return new X509Certificate2(encoded);
+        // If a private key is provided, we need to convert the certificate to a PFX format.
+
+        byte[] pfxBytes = @this.CreatePfxWithAes256(privateKey, s_temporaryPassword);
+
+        return new X509Certificate2(
+            rawData: pfxBytes,
+            password: s_temporaryPassword,
+            keyStorageFlags: X509KeyStorageFlags.EphemeralKeySet
+        );
     }
 
     /// <summary>
@@ -90,9 +167,7 @@ public static class CryptographyExtensions
     /// <param name="password">The PFX password.</param>
     /// <param name="certificates">Immutable dictionary of certificate/private key pairs (null key if none found).</param>
     /// <returns>True on success, false if parsing fails.</returns>
-    public static bool TryParsePkcs12(
-        [NotNullWhen(true)] this byte[] @this,
-        string? password,
+    public static bool TryParsePkcs12([NotNullWhen(true)] this byte[] @this, string? password,
         out ImmutableDictionary<X509Certificate, AsymmetricKeyParameter?> certificates)
     {
         ImmutableDictionaryBuilder<X509Certificate, AsymmetricKeyParameter?> builder = [];
@@ -135,9 +210,7 @@ public static class CryptographyExtensions
     /// <param name="this">The PEM-encoded string representing a PKCS#10 certification request.</param>
     /// <param name="certificationRequest">When this method returns, contains the parsed <see cref="Pkcs10CertificationRequest"/> if parsing succeeded; otherwise, null.</param>
     /// <returns><c>true</c> if the string was successfully parsed into a <see cref="Pkcs10CertificationRequest"/>; otherwise, <c>false</c>.</returns>
-    public static bool TryParseToPkcs10(
-        [NotNullWhen(true)] this string? @this,
-        [NotNullWhen(true)] out Pkcs10CertificationRequest? certificationRequest)
+    public static bool TryParseToPkcs10([NotNullWhen(true)] this string? @this, [NotNullWhen(true)] out Pkcs10CertificationRequest? certificationRequest)
     {
         if (string.IsNullOrEmpty(@this))
         {
@@ -166,9 +239,7 @@ public static class CryptographyExtensions
     /// <param name="this">The PEM-encoded string representing an X.509 certificate.</param>
     /// <param name="certificate">When this method returns, contains the parsed <see cref="X509Certificate"/> if parsing succeeded; otherwise, null.</param>
     /// <returns><c>true</c> if the string was successfully parsed into a certificate; otherwise, <c>false</c>.</returns>
-    public static bool TryParseToCertificate(
-        [NotNullWhen(true)] this string? @this,
-        [NotNullWhen(true)] out X509Certificate? certificate)
+    public static bool TryParseToCertificate([NotNullWhen(true)] this string? @this, [NotNullWhen(true)] out X509Certificate? certificate)
     {
         if (string.IsNullOrEmpty(@this))
         {
@@ -197,9 +268,7 @@ public static class CryptographyExtensions
     /// <param name="this">The PEM-encoded string representing a public key.</param>
     /// <param name="publicKey">When this method returns, contains the parsed <see cref="AsymmetricKeyParameter"/> if parsing succeeded; otherwise, null.</param>
     /// <returns><c>true</c> if the string was successfully parsed into a public key; otherwise, <c>false</c>.</returns>
-    public static bool TryParseToPublicKey(
-        [NotNullWhen(true)] this string? @this,
-        [NotNullWhen(true)] out AsymmetricKeyParameter? publicKey)
+    public static bool TryParseToPublicKey([NotNullWhen(true)] this string? @this, [NotNullWhen(true)] out AsymmetricKeyParameter? publicKey)
     {
         if (string.IsNullOrEmpty(@this))
         {
@@ -229,10 +298,7 @@ public static class CryptographyExtensions
     /// <param name="password">An optional password to decrypt the private key if it is encrypted; can be null for unencrypted keys.</param>
     /// <param name="privateKey">When this method returns, contains the parsed <see cref="AsymmetricCipherKeyPair"/> if parsing succeeded; otherwise, null.</param>
     /// <returns><c>true</c> if the string was successfully parsed into a private key; otherwise, <c>false</c>.</returns>
-    public static bool TryParseToPrivateKey(
-        [NotNullWhen(true)] this string? @this,
-        string? password,
-        [NotNullWhen(true)] out AsymmetricCipherKeyPair? privateKey)
+    public static bool TryParseToPrivateKey([NotNullWhen(true)] this string? @this, string? password, [NotNullWhen(true)] out AsymmetricCipherKeyPair? privateKey)
     {
         if (string.IsNullOrEmpty(@this))
         {
@@ -304,87 +370,38 @@ public static class CryptographyExtensions
     /// <summary>
     /// Attempts to get the signature algorithm OID from a PKCS#10 certification request.
     /// </summary>
-    /// <param name="this">The certification request.</param>
-    /// <param name="algorithm">When this method returns, contains the signature algorithm OID if successfully retrieved; otherwise, null.</param>
-    /// <returns><c>true</c> if the signature algorithm was successfully retrieved; otherwise, <c>false</c>.</returns>
-    public static bool TryGetSignatureAlgorithm(
-        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
-        [NotNullWhen(true)] out Oid? algorithm)
+    public static Oid GetSignatureAlgorithm(this Pkcs10CertificationRequest @this)
     {
-        if (@this is null)
-        {
-            algorithm = null;
-            return false;
-        }
-
         AlgorithmIdentifier algorithmIdentifier = @this.SignatureAlgorithm;
         DerObjectIdentifier oid = algorithmIdentifier.Algorithm;
-        algorithm = new Oid(oid.Id);
-        return true;
+
+        return new Oid(oid.Id);
     }
     /// <summary>
-    /// Attempts to extract public key parameters such as algorithm OID and key size from a PKCS#10 certification request.
+    /// Attempts to extract public key parameters such as algorithm OID and key size from a PKCS#10 certification request.    /// 
     /// </summary>
-    /// <param name="this">The certification request.</param>
-    /// <param name="algorithm">When this method returns, contains the public key parameters if successfully retrieved; otherwise, null.</param>
-    /// <returns><c>true</c> if public key parameters were successfully retrieved; otherwise, <c>false</c>.</returns>
-    public static bool TryGetPublicKeyParameters(
-        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
-        [NotNullWhen(true)] out PublicKeyParams? algorithm)
+    /// <remarks>DSA is unsupported in modern PKCS#10 requests, so we don't handle it.</remarks>
+    public static PublicKeyParams GetPublicKeyParameters(this Pkcs10CertificationRequest @this)
     {
-        if (@this is null)
-        {
-            algorithm = null;
-            return false;
-        }
-
         AsymmetricKeyParameter key = @this.GetPublicKey();
 
-        if (key is DsaKeyParameters dsa)
+        return key switch
         {
-            algorithm = new PublicKeyParams(new Oid(X9ObjectIdentifiers.IdDsa.Id), dsa.Parameters.P.BitLength);
-            return true;
-        }
-        else if (key is RsaKeyParameters rsa)
-        {
-            algorithm = new PublicKeyParams(new Oid(PkcsObjectIdentifiers.RsaEncryption.Id), rsa.Modulus.BitLength);
-            return true;
-        }
-        else if (key is ECPublicKeyParameters ec)
-        {
-            algorithm = new PublicKeyParams(new Oid(ec.PublicKeyParamSet.Id), ec.Parameters.Curve.FieldSize);
-            return true;
-        }
-        else if (key is Ed25519PublicKeyParameters)
-        {
-            algorithm = new PublicKeyParams(new Oid(EdECObjectIdentifiers.id_Ed25519.Id), Ed25519.PublicKeySize);
-            return true;
-        }
-        else if (key is Ed448PublicKeyParameters)
-        {
-            algorithm = new PublicKeyParams(new Oid(EdECObjectIdentifiers.id_Ed448.Id), Ed448.PublicKeySize);
-            return true;
-        }
-
-        algorithm = null;
-        return false;
+            RsaKeyParameters rsa => new PublicKeyParams(new Oid(PkcsObjectIdentifiers.RsaEncryption.Id), rsa.Modulus.BitLength),
+            ECPublicKeyParameters ec => new PublicKeyParams(new Oid(ec.PublicKeyParamSet.Id), ec.Parameters.Curve.FieldSize),
+            Ed25519PublicKeyParameters => new PublicKeyParams(new Oid(EdECObjectIdentifiers.id_Ed25519.Id), Ed25519.PublicKeySize),
+            Ed448PublicKeyParameters => new PublicKeyParams(new Oid(EdECObjectIdentifiers.id_Ed448.Id), Ed448.PublicKeySize),
+            _ => throw new NotSupportedException(
+                    $"Unsupported public key algorithm: {key.GetType().FullName ?? key.GetType().Name}. " +
+                    "Only RSA, ECDsa, Ed25519, and Ed448 keys are supported.")
+        };
     }
     /// <summary>
     /// Attempts to extract Subject Alternative Names (SAN) from a PKCS#10 certification request.
     /// </summary>
-    /// <param name="this">The PKCS#10 certification request.</param>
-    /// <param name="subjectAltNames">When this method returns, contains an immutable array of parsed SANs if successful; otherwise, empty.</param>
-    /// <returns>True if SANs were extracted; otherwise, false.</returns>
-    public static bool TryGetSubjectAltNames(
-        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
-        out ImmutableArray<ISubjectAltName> subjectAltNames)
+    public static ImmutableArray<ISubjectAltName> GetSubjectAltNames(this Pkcs10CertificationRequest @this)
     {
         ImmutableArrayBuilder<ISubjectAltName> builder = [];
-        if (@this is null)
-        {
-            subjectAltNames = builder.ToImmutable();
-            return false;
-        }
 
         CertificationRequestInfo certificationRequestInfo = @this.GetCertificationRequestInfo();
         Asn1Set attributes = certificationRequestInfo.Attributes;
@@ -419,14 +436,17 @@ public static class CryptographyExtensions
             }
         }
 
-        subjectAltNames = builder.ToImmutable();
-        return true;
+        return builder.ToImmutable();
     }
 
     private static AsymmetricAlgorithm ToDotNetPrivateKey(this AsymmetricCipherKeyPair @this)
     {
         switch (@this.Private)
         {
+            // IMPORTANT!
+            // DSA is unsupported in modern PKCS#10 requests,
+            // so we don't handle it here.
+
             case RsaPrivateCrtKeyParameters privateKey:
             {
                 RSAParameters rsaParams = DotNetUtilities.ToRSAParameters(privateKey);
@@ -460,18 +480,55 @@ public static class CryptographyExtensions
             }
             default:
             {
-                throw new NotSupportedException($"Unsupported algorithm specified {@this.GetType().FullName ?? @this.GetType().Name}. Only RSA and ECDsa keys are supported.");
+                throw new NotSupportedException(
+                    $"Unsupported algorithm specified {@this.GetType().FullName ?? @this.GetType().Name}. Only RSA and ECDsa keys are supported.");
             }
         }
     }
 
     private static AsymmetricCipherKeyPair ToBouncyCastlePrivateKey(this AsymmetricAlgorithm @this) => @this switch
     {
+        // IMPORTANT!
+        // DSA is unsupported in modern PKCS#10 requests,
+        // so we don't handle it here.
         RSA rsa => DotNetUtilities.GetRsaKeyPair(rsa),
         ECDsa ec => DotNetUtilities.GetECDsaKeyPair(ec),
         _ => throw new NotSupportedException(
-            $"Unsupported algorithm specified {@this.GetType().FullName ?? @this.GetType().Name}. Only RSA and ECDsa keys are supported.")
+                $"Unsupported algorithm specified {@this.GetType().FullName ?? @this.GetType().Name}. Only RSA and ECDsa keys are supported.")
     };
+
+    public static bool VerifyPrivateKeyMatchesCertificate(X509Certificate cert, AsymmetricKeyParameter privateKey)
+    {
+        // Get the public key from the certificate
+        AsymmetricKeyParameter publicKey = cert.GetPublicKey();
+
+        // Determine the appropriate signature algorithm
+        // IMPORTANT!
+        // DSA is unsupported in modern PKCS#10 requests,
+        // so we don't handle it here.
+        string signatureAlgorithm = privateKey switch
+        {
+            RsaPrivateCrtKeyParameters => "SHA256withRSA",
+            ECPrivateKeyParameters => "SHA256withECDSA",
+            _ => throw new NotSupportedException(
+                    $"Key type {privateKey.GetType().FullName ?? privateKey.GetType().Name} is not supported."),
+        };
+
+        // Get the signer using SignerUtilities
+        ISigner signer = SignerUtilities.GetSigner(signatureAlgorithm);
+
+        // Sign the test data with private key
+        signer.Init(forSigning: true, privateKey);
+        signer.BlockUpdate(s_testData, 0, s_testData.Length);
+        byte[] signature = signer.GenerateSignature();
+
+        // Verify the signature with public key
+        ISigner verifier = SignerUtilities.GetSigner(signatureAlgorithm);
+        verifier.Init(forSigning: false, publicKey);
+        verifier.BlockUpdate(s_testData, 0, s_testData.Length);
+
+        return verifier.VerifySignature(signature);
+    }
 
     /// <summary>
     /// Helper to retrieve an <see cref="Asn1Object"/> by OID from a <see cref="DerSequence"/> recursively.
