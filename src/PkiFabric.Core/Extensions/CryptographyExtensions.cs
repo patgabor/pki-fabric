@@ -3,6 +3,7 @@
 
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.EdEC;
@@ -21,20 +22,36 @@ using Org.BouncyCastle.Security.Certificates;
 using PkiFabric.Core.Cryptography;
 using PkiFabric.Core.Helpers;
 
+using static System.Security.Cryptography.X509Certificates.DSACertificateExtensions;
+using static System.Security.Cryptography.X509Certificates.ECDsaCertificateExtensions;
+using static System.Security.Cryptography.X509Certificates.RSACertificateExtensions;
+
 using Oid = System.Security.Cryptography.Oid;
 using X509Certificate = Org.BouncyCastle.X509.X509Certificate;
+using X509Certificate2 = System.Security.Cryptography.X509Certificates.X509Certificate2;
 
 namespace PkiFabric.Core.Extensions;
 
 /// <summary>
 /// Provides extension methods for parsing cryptographic data from PEM-encoded strings.
 /// </summary>
-/// <remarks>This class includes methods for parsing PEM-encoded strings into various cryptographic objects, such
-/// as  PKCS#10 certification requests, X.509 certificates, public keys, and private keys. Each method follows  a
-/// "TryParse" pattern, returning a boolean to indicate success or failure, and outputs the parsed object  if
-/// successful.</remarks>
 public static class CryptographyExtensions
 {
+    /// <summary>
+    /// Converts a BouncyCastle <see cref="X509Certificate"/> to a .NET <see cref="X509Certificate2"/>.
+    /// </summary>
+    public static X509Certificate2 ToX509Certificate2(this X509Certificate @this, AsymmetricKeyParameter? privateKey = null)
+    {
+        if (privateKey is null)
+        {
+            return new X509Certificate2(@this.CertificateStructure.GetEncoded(Asn1Encodable.Der));
+        }
+        // TODO: Handle private key if provided
+        // may convert to pfx then read into X509Certificate2
+        byte[] encoded = @this.GetEncoded();
+        return new X509Certificate2(encoded);
+    }
+
     /// <summary>
     /// Computes the SHA-1 thumbprint of the given certificate using BouncyCastle's digest.
     /// Throws if the certificate cannot be encoded.
@@ -71,60 +88,44 @@ public static class CryptographyExtensions
     /// </summary>
     /// <param name="this">The PFX file as a byte array.</param>
     /// <param name="password">The PFX password.</param>
-    /// <param name="certificateKeyMap">Immutable dictionary of certificate/private key pairs (null key if none found).</param>
+    /// <param name="certificates">Immutable dictionary of certificate/private key pairs (null key if none found).</param>
     /// <returns>True on success, false if parsing fails.</returns>
-    public static bool TryParsePfx(
+    public static bool TryParsePkcs12(
         [NotNullWhen(true)] this byte[] @this,
         string? password,
-        out ImmutableDictionary<X509Certificate, AsymmetricKeyParameter?> certificateKeyMap)
+        out ImmutableDictionary<X509Certificate, AsymmetricKeyParameter?> certificates)
     {
         ImmutableDictionaryBuilder<X509Certificate, AsymmetricKeyParameter?> builder = [];
         if (@this is null || @this.Length == 0)
         {
-            certificateKeyMap = builder.ToImmutable();
+            certificates = builder.ToImmutable();
             return false; // Fail early if input is invalid
         }
 
-        using var ms = new MemoryStream(@this);
+        using var stream = new MemoryStream(@this);
         Pkcs12Store store = new Pkcs12StoreBuilder().Build();
-        if (password is not null)
-        {
-            using PasswordProxy passwordProxy = new(password);
-            store.Load(ms, passwordProxy.GetPassword());
-        }
-        else
-        {
-            store.Load(ms, []);
-        }
+        store.Load(stream, password?.ToCharArray());
         foreach (string alias in store.Aliases)
         {
             if (store.IsKeyEntry(alias))
             {
-                // Retrieve the certificate associated with this key
-                X509CertificateEntry[] certChain = store.GetCertificateChain(alias);
-                X509Certificate leafCert = certChain[0].Certificate;
-                AsymmetricKeyEntry entry = store.GetKey(alias);
-                AsymmetricKeyParameter privateKey = entry.Key;
+                X509CertificateEntry certificateEntry = store.GetCertificate(alias);
+                X509Certificate certificate = certificateEntry.Certificate;
+                AsymmetricKeyEntry keyEntry = store.GetKey(alias);
+                AsymmetricKeyParameter privateKey = keyEntry.Key;
 
-                // The rest are intermediates and roots with no private keys.
-                // we do not carea about them here.
-                builder[leafCert] = privateKey;
+                builder[certificate] = privateKey;
             }
-            if (store.IsCertificateEntry(alias))
+            else if (store.IsCertificateEntry(alias))
             {
                 X509CertificateEntry entry = store.GetCertificate(alias);
                 X509Certificate certificate = entry.Certificate;
-
-                if (!builder.Any(pair => pair.Key.Equals(certificate)))
-                {
-                    // Add to the dictionary, using null for private keys if not available
-                    builder[certificate] = null;
-                }
+                builder[certificate] = null;
 
             }
         }
 
-        certificateKeyMap = builder.ToImmutable();
+        certificates = builder.ToImmutable();
         return true;
     }
 
@@ -271,21 +272,10 @@ public static class CryptographyExtensions
     /// <summary>
     /// Attempts to extract subject Distinguished Names (DN) from a PKCS#10 certification request.
     /// </summary>
-    /// <param name="this">The certification request.</param>
-    /// <param name="subject">When this method returns, contains the subject DN entries as an immutable dictionary mapping OIDs to arrays of string values.</param>
-    /// <returns><c>true</c> if the subject was successfully extracted; otherwise, <c>false</c>.</returns>
-    public static bool TryGetSubject(
-        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
-        out ImmutableDictionary<Oid, ImmutableArray<string>> subject)
+    public static ImmutableDictionary<Oid, ImmutableArray<string>> GetSubject(this Pkcs10CertificationRequest @this)
     {
         ImmutableDictionaryBuilder<Oid, ImmutableArray<string>> builder =
             new(OidEqualityComparer.Default);
-
-        if (@this is null)
-        {
-            subject = builder.ToImmutable();
-            return false;
-        }
 
         CertificationRequestInfo certificationRequestInfo = @this.GetCertificationRequestInfo();
         IList<DerObjectIdentifier> oids = certificationRequestInfo.Subject.GetOidList();
@@ -296,33 +286,20 @@ public static class CryptographyExtensions
             builder.Add(new Oid(oid.Id), [.. values]);
         }
 
-        subject = builder.ToImmutable();
-        return true;
+        return builder.ToImmutable();
     }
 
     /// <summary>
     /// Attempts to get the public key algorithm OID from a PKCS#10 certification request.
     /// </summary>
-    /// <param name="this">The certification request.</param>
-    /// <param name="algorithm">When this method returns, contains the algorithm OID if successfully retrieved; otherwise, null.</param>
-    /// <returns><c>true</c> if the algorithm was successfully retrieved; otherwise, <c>false</c>.</returns>
-    public static bool TryGetPublicKeyAlgorithm(
-        [NotNullWhen(true)] this Pkcs10CertificationRequest? @this,
-        [NotNullWhen(true)] out Oid? algorithm)
+    public static Oid GetPublicKeyAlgorithm(this Pkcs10CertificationRequest @this)
     {
-        if (@this is null)
-        {
-            algorithm = null;
-            return false;
-        }
-
         CertificationRequestInfo certificationRequestInfo = @this.GetCertificationRequestInfo();
         SubjectPublicKeyInfo subjectPublicKeyInfo = certificationRequestInfo.SubjectPublicKeyInfo;
         AlgorithmIdentifier algorithmIdentifier = subjectPublicKeyInfo.Algorithm;
         DerObjectIdentifier oid = algorithmIdentifier.Algorithm;
 
-        algorithm = new Oid(oid.Id);
-        return true;
+        return new Oid(oid.Id);
     }
     /// <summary>
     /// Attempts to get the signature algorithm OID from a PKCS#10 certification request.
@@ -445,6 +422,56 @@ public static class CryptographyExtensions
         subjectAltNames = builder.ToImmutable();
         return true;
     }
+
+    private static AsymmetricAlgorithm ToDotNetPrivateKey(this AsymmetricCipherKeyPair @this)
+    {
+        switch (@this.Private)
+        {
+            case RsaPrivateCrtKeyParameters privateKey:
+            {
+                RSAParameters rsaParams = DotNetUtilities.ToRSAParameters(privateKey);
+                RSA rsa = RSA.Create();
+                rsa.ImportParameters(rsaParams);
+
+                return rsa;
+            }
+
+            case ECPrivateKeyParameters ecPrivate:
+            {
+                string oid = ecPrivate.PublicKeyParamSet.Id;
+                if (oid != ECCurve.NamedCurves.nistP256.Oid.Value &&    // secp256r1 / P-256
+                    oid != ECCurve.NamedCurves.nistP384.Oid.Value &&    // secp384r1 / P-384
+                    oid != ECCurve.NamedCurves.nistP521.Oid.Value)      // secp521r1 / P-521
+                {
+                    throw new NotSupportedException($"Unsupported EC named curve with OID {oid}. " +
+                        "Only secp256r1 (P-256), secp384r1 (P-384), and secp521r1 (P-521) are supported.");
+                }
+
+                PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(ecPrivate);
+                byte[] pkcs8Bytes = privateKeyInfo.GetEncoded(Asn1Encodable.Der);
+
+                ECDsa ecdsa = ECDsa.Create();
+                // This method only supports the binary (BER/CER/DER) encoding of PrivateKeyInfo.
+                // If the value is Base64-encoded, the caller must Base64-decode the contents before calling this method.
+                // If the value is PEM-encoded, "ImportFromPem" should be used.
+                ecdsa.ImportPkcs8PrivateKey(pkcs8Bytes, out _);
+
+                return ecdsa;
+            }
+            default:
+            {
+                throw new NotSupportedException($"Unsupported algorithm specified {@this.GetType().FullName ?? @this.GetType().Name}. Only RSA and ECDsa keys are supported.");
+            }
+        }
+    }
+
+    private static AsymmetricCipherKeyPair ToBouncyCastlePrivateKey(this AsymmetricAlgorithm @this) => @this switch
+    {
+        RSA rsa => DotNetUtilities.GetRsaKeyPair(rsa),
+        ECDsa ec => DotNetUtilities.GetECDsaKeyPair(ec),
+        _ => throw new NotSupportedException(
+            $"Unsupported algorithm specified {@this.GetType().FullName ?? @this.GetType().Name}. Only RSA and ECDsa keys are supported.")
+    };
 
     /// <summary>
     /// Helper to retrieve an <see cref="Asn1Object"/> by OID from a <see cref="DerSequence"/> recursively.

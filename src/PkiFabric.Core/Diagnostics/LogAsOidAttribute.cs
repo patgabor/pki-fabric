@@ -26,7 +26,7 @@ public sealed class LogAsOidAttribute : Attribute, ITypeDestructuringAttribute, 
 
     /// <inheritdoc/>
     public LogEventPropertyValue CreatePropertyValue(object? value, bool destructureObjects = false)
-        => value switch { Oid { Value: not null } oid => new ScalarValue(oid.Value), _ => ScalarValue.Null };
+        => value switch { Oid { Value: not null } oid => new ScalarValue($"{oid.Value} [{oid.FriendlyName}]"), _ => ScalarValue.Null };
 
     /// <inheritdoc/>
     public bool TryCreateLogEventProperty(string name, object? value, ILogEventPropertyValueFactory propertyValueFactory, [NotNullWhen(true)] out LogEventProperty? property)
