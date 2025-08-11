@@ -38,7 +38,8 @@ namespace PkiFabric.Core.Extensions;
 public static class CryptographyExtensions
 {
     private static readonly string s_temporaryPassword = Guid.NewGuid().ToString("N");
-    private static readonly byte[] s_testData = Encoding.UTF8.GetBytes("Test data for key verification");
+    private static readonly byte[] s_testData = Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N"));
+
     /// <summary>
     /// Creates a PKCS#12 (PFX) container from the given BouncyCastle <see cref="X509Certificate"/> 
     /// and its associated private key, encrypting the private key bag using 3DES (Triple DES). 
@@ -49,7 +50,7 @@ public static class CryptographyExtensions
     {
         Guard.IsTrue(privateKey.IsPrivate);
         Guard.IsNotNullOrEmpty(password);
-        Guard.IsTrue(VerifyPrivateKeyMatchesCertificate(@this, privateKey));
+        Guard.IsTrue(VerifyPrivateKeyMatchesCertificate(@this.GetPublicKey(), privateKey));
 
         Pkcs12StoreBuilder storeBuilder = new();
         storeBuilder.SetUseDerEncoding(true);
@@ -82,7 +83,7 @@ public static class CryptographyExtensions
     {
         Guard.IsTrue(privateKey.IsPrivate);
         Guard.IsNotNullOrEmpty(password);
-        Guard.IsTrue(VerifyPrivateKeyMatchesCertificate(@this, privateKey));
+        Guard.IsTrue(VerifyPrivateKeyMatchesCertificate(@this.GetPublicKey(), privateKey));
 
         Pkcs12StoreBuilder storeBuilder = new();
         storeBuilder.SetUseDerEncoding(true);
@@ -138,20 +139,20 @@ public static class CryptographyExtensions
     {
         try
         {
-            byte[] encoded = @this.GetEncoded();
+            byte[] derEncoded = @this.GetEncoded();
 
-            if (encoded.Length == 0)
+            if (derEncoded.Length == 0)
             {
                 throw new InvalidOperationException("Certificate encoding returned no data.");
             }
 
-            Sha1Digest digest = new();
-            digest.BlockUpdate(encoded, 0, encoded.Length);
+            Sha1Digest sha1digest = new();
+            sha1digest.BlockUpdate(derEncoded, 0, derEncoded.Length);
 
-            byte[] output = new byte[digest.GetDigestSize()];
-            digest.DoFinal(output, 0);
+            byte[] thumbprint = new byte[sha1digest.GetDigestSize()];
+            sha1digest.DoFinal(thumbprint, 0);
 
-            return output;
+            return thumbprint;
         }
         catch (CertificateEncodingException ex)
         {
@@ -167,8 +168,7 @@ public static class CryptographyExtensions
     /// <param name="password">The PFX password.</param>
     /// <param name="certificates">Immutable dictionary of certificate/private key pairs (null key if none found).</param>
     /// <returns>True on success, false if parsing fails.</returns>
-    public static bool TryParsePkcs12([NotNullWhen(true)] this byte[] @this, string? password,
-        out ImmutableDictionary<X509Certificate, AsymmetricKeyParameter?> certificates)
+    public static bool TryParsePkcs12([NotNullWhen(true)] this byte[] @this, string? password, out ImmutableDictionary<X509Certificate, AsymmetricKeyParameter?> certificates)
     {
         ImmutableDictionaryBuilder<X509Certificate, AsymmetricKeyParameter?> builder = [];
         if (@this is null || @this.Length == 0)
@@ -439,7 +439,7 @@ public static class CryptographyExtensions
         return builder.ToImmutable();
     }
 
-    private static AsymmetricAlgorithm ToDotNetPrivateKey(this AsymmetricCipherKeyPair @this)
+    public static AsymmetricAlgorithm ToDotNetPrivateKey(this AsymmetricCipherKeyPair @this)
     {
         switch (@this.Private)
         {
@@ -486,7 +486,7 @@ public static class CryptographyExtensions
         }
     }
 
-    private static AsymmetricCipherKeyPair ToBouncyCastlePrivateKey(this AsymmetricAlgorithm @this) => @this switch
+    public static AsymmetricCipherKeyPair ToBouncyCastlePrivateKey(this AsymmetricAlgorithm @this) => @this switch
     {
         // IMPORTANT!
         // DSA is unsupported in modern PKCS#10 requests,
@@ -497,10 +497,10 @@ public static class CryptographyExtensions
                 $"Unsupported algorithm specified {@this.GetType().FullName ?? @this.GetType().Name}. Only RSA and ECDsa keys are supported.")
     };
 
-    public static bool VerifyPrivateKeyMatchesCertificate(X509Certificate cert, AsymmetricKeyParameter privateKey)
+    public static bool VerifyPrivateKeyMatchesCertificate(AsymmetricKeyParameter publicKey, AsymmetricKeyParameter privateKey)
     {
-        // Get the public key from the certificate
-        AsymmetricKeyParameter publicKey = cert.GetPublicKey();
+        Guard.IsTrue(!publicKey.IsPrivate);
+        Guard.IsTrue(privateKey.IsPrivate);
 
         // Determine the appropriate signature algorithm
         // IMPORTANT!
