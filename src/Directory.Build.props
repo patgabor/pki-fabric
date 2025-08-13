@@ -5,13 +5,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net9.0</TargetFramework>
+    <RuntimeIdentifiers Condition="'$(OutputType)' == 'Exe'">win-x64;linux-x64"</RuntimeIdentifiers>
+    <ServerGarbageCollection Condition="'$(OutputType)' == 'Exe'">true</ServerGarbageCollection>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <Company>PATGABOR</Company>
     <Authors>PATGABOR</Authors>
     <Product>PKI Fabric</Product>
-    <Version>0.0.1</Version>
+    <Version>0.1.0</Version>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <Deterministic>true</Deterministic>
     <GenerateAssemblyVersionAttribute>true</GenerateAssemblyVersionAttribute>
@@ -21,8 +23,11 @@
     <AnalysisMode>all</AnalysisMode>
     <CodeAnalysisIgnoreGeneratedCode>false</CodeAnalysisIgnoreGeneratedCode>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug' and '$(MSBuildProjectExtension)' == '.csproj'">
+    <SelfContained Condition="'$(OutputType)' == 'Exe'">false</SelfContained>
+    <PublishSingleFile Condition="'$(OutputType)' == 'Exe'">false</PublishSingleFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DebugType>pdbonly</DebugType>
     <DebugSymbols>true</DebugSymbols>
@@ -30,12 +35,11 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(MSBuildProjectExtension)' == '.csproj'">
+    <SelfContained Condition="'$(OutputType)' == 'Exe'">true</SelfContained>
+    <PublishSingleFile Condition="'$(OutputType)' == 'Exe'">true</PublishSingleFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <DebugType>none</DebugType>
     <Optimize>true</Optimize>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-  </ItemGroup>
 </Project>

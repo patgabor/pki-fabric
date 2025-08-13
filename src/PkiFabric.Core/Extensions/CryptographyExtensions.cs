@@ -63,8 +63,7 @@ public static class CryptographyExtensions
         X509CertificateEntry certEntry = new(@this);
         AsymmetricKeyEntry keyEntry = new(privateKey);
 
-        // ONLY use SetKeyEntry - this automatically includes the certificate
-        // Do NOT call SetCertificateEntry when you have a private key
+        store.SetCertificateEntry(alias, certEntry);
         store.SetKeyEntry(alias, keyEntry, [certEntry]);
 
         using MemoryStream stream = new();
@@ -98,8 +97,7 @@ public static class CryptographyExtensions
         X509CertificateEntry certEntry = new(@this);
         AsymmetricKeyEntry keyEntry = new(privateKey);
 
-        // ONLY use SetKeyEntry - this automatically includes the certificate
-        // Do NOT call SetCertificateEntry when you have a private key
+        store.SetCertificateEntry(alias, certEntry);
         store.SetKeyEntry(alias, keyEntry, [certEntry]);
 
         using MemoryStream stream = new();
@@ -117,17 +115,13 @@ public static class CryptographyExtensions
         if (privateKey is null)
         {
             byte[] certificate = @this.CertificateStructure.GetEncoded(Asn1Encodable.Der);
-            return new X509Certificate2(certificate);
+            return X509CertificateLoader.LoadCertificate(certificate);
         }
         // If a private key is provided, we need to convert the certificate to a PFX format.
 
-        byte[] pfxBytes = @this.CreatePfxWithAes256(privateKey, s_temporaryPassword);
+        byte[] pfxBytes = @this.CreatePfxWithTripleDes(privateKey, s_temporaryPassword);
 
-        return new X509Certificate2(
-            rawData: pfxBytes,
-            password: s_temporaryPassword,
-            keyStorageFlags: X509KeyStorageFlags.EphemeralKeySet
-        );
+        return X509CertificateLoader.LoadPkcs12(pfxBytes, s_temporaryPassword, X509KeyStorageFlags.EphemeralKeySet);
     }
 
     /// <summary>
