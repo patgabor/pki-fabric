@@ -17,9 +17,9 @@ internal static class CertAuthExtensions
     private const int CacheSize = 1_000;
     private static readonly TimeSpan s_cacheDuration = TimeSpan.FromMinutes(5);
 
-    public static IServiceCollection AddClientCertAuthentication(this IServiceCollection services)
+    public static IServiceCollection AddClientCertAuthentication(this IServiceCollection @this)
     {
-        AuthenticationBuilder auth = services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme);
+        AuthenticationBuilder auth = @this.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme);
 
         _ = auth.AddCertificate(static authentication =>
         {
@@ -41,12 +41,12 @@ internal static class CertAuthExtensions
             options.CacheSize = CacheSize;
             options.CacheEntryExpiration = s_cacheDuration;
         });
-        return services;
+        return @this;
     }
 
-    public static IServiceCollection AddClientCertAuthorization(this IServiceCollection services)
+    public static IServiceCollection AddClientCertAuthorization(this IServiceCollection @this)
     {        
-        return services.AddAuthorization(static authorization =>
+        return @this.AddAuthorization(static authorization =>
         {
             authorization.AddPolicy(RestrictedEndpoint, s_withCertClaims);
         });

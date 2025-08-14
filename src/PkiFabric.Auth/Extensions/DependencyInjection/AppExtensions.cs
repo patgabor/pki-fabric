@@ -18,11 +18,11 @@ namespace PkiFabric.Auth.Extensions.DependencyInjection;
 
 internal static class AppExtensions
 {
-    public static IServiceCollection UseAppEndpoints(this IServiceCollection services)
+    public static IServiceCollection UseAppEndpoints(this IServiceCollection @this)
     {
         ValidatorOptions.Global.DefaultRuleLevelCascadeMode = CascadeMode.Stop;
 
-        return services.AddFastEndpoints().SwaggerDocument(static swagger =>
+        return @this.AddFastEndpoints().SwaggerDocument(static swagger =>
         {
             swagger.MinEndpointVersion = 1;
             swagger.MaxEndpointVersion = 1;            
@@ -48,9 +48,9 @@ internal static class AppExtensions
         });
     }
 
-    public static IApplicationBuilder MapAppEndpoints(this IApplicationBuilder app)
+    public static IApplicationBuilder MapAppEndpoints(this IApplicationBuilder @this)
     {
-        return app.UseFastEndpoints(static options =>
+        return @this.UseFastEndpoints(static options =>
         {
             options.Endpoints.Configurator = static endpoints =>
             {

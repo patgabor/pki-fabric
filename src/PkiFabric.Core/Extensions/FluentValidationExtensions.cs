@@ -16,14 +16,21 @@ using PkiFabric.Core.Helpers;
 
 namespace PkiFabric.Core.Extensions;
 
+/// <summary>
+/// Provides extension methods for FluentValidation's <see cref="IRuleBuilder{T,TProperty}"/> 
+/// to validate common data formats such as email addresses, URLs, IP addresses, etc.
+/// </summary>
 public static class FluentValidationExtensions
 {
-    public static IRuleBuilderOptions<T, string> BeAValidX500DistinguishedName<T>(this IRuleBuilder<T, string> ruleBuilder)
+    /// <summary>
+    /// Validates that the string is a valid X.500 Distinguished Name.
+    /// </summary>
+    public static IRuleBuilder<T, string> BeAValidX500DistinguishedName<T>(this IRuleBuilder<T, string> @this)
     {
-        Guard.IsNotNull(ruleBuilder);
+        Guard.IsNotNull(@this);
 
-        return ruleBuilder
-            .NotEmpty().WithMessage("X500DistinguishedName cannot be empty.")
+        return @this
+            .NotEmpty().WithMessage("X.500 Distinguished Name cannot be empty.")
             .Must(static data =>
             {
                 try
@@ -35,14 +42,17 @@ public static class FluentValidationExtensions
                 {
                     return false;
                 }
-            }).WithMessage(static (root, data) => $"Invalid X500DistinguishedName: \"{data}\".");
+            }).WithMessage(static (root, data) => $"Invalid X.500 Distinguished Name: \"{data}\".");
     }
 
-    public static IRuleBuilderOptions<T, string> BeAValidEmail<T>(this IRuleBuilder<T, string> ruleBuilder)
+    /// <summary>
+    /// Validates that the string is a properly formatted email address.
+    /// </summary>
+    public static IRuleBuilderOptions<T, string> BeAValidEmail<T>(this IRuleBuilder<T, string> @this)
     {
-        Guard.IsNotNull(ruleBuilder);
+        Guard.IsNotNull(@this);
 
-        return ruleBuilder
+        return @this
             .NotEmpty().WithMessage("Email address cannot be empty.")
             .Must(static data =>
                 MailAddress.TryCreate(data, out MailAddress? result) &&
@@ -50,11 +60,15 @@ public static class FluentValidationExtensions
             .WithMessage(static (root, data) => $"Invalid email address: \"{data}\".");
     }
 
-    public static IRuleBuilderOptions<T, string> BeAValidPasword<T>(this IRuleBuilder<T, string> ruleBuilder)
+    /// <summary>
+    /// Validates that the password meets a minimum strength requirement.
+    /// Strength is calculated using entropy; must be at least "Good".
+    /// </summary>
+    public static IRuleBuilderOptions<T, string> BeAValidPasword<T>(this IRuleBuilder<T, string> @this)
     {
-        Guard.IsNotNull(ruleBuilder);
+        Guard.IsNotNull(@this);
 
-        return ruleBuilder
+        return @this
             .NotEmpty().WithMessage("Password cannot be empty.")
             .Must(static (root, data, context) =>
             {
@@ -70,11 +84,14 @@ public static class FluentValidationExtensions
             .WithMessage(static (root) => "Weak password, strength: \"{Strength}\", entropy: \"{Entropy}\".");
     }
 
-    public static IRuleBuilderOptions<T, string> BeAValidUrl<T>(this IRuleBuilder<T, string> ruleBuilder)
+    /// <summary>
+    /// Validates that the string is a valid absolute HTTP or HTTPS URL.
+    /// </summary
+    public static IRuleBuilderOptions<T, string> BeAValidUrl<T>(this IRuleBuilder<T, string> @this)
     {
-        Guard.IsNotNull(ruleBuilder);
+        Guard.IsNotNull(@this);
 
-        return ruleBuilder
+        return @this
             .NotEmpty().WithMessage("URL cannot be empty.")
             .Must(static data =>
                 Uri.TryCreate(data, UriKind.Absolute, out Uri? uri) &&
@@ -83,29 +100,39 @@ public static class FluentValidationExtensions
             .WithMessage(static (root, data) => $"Invalid URL: \"{data}\".");
     }
 
-    public static IRuleBuilderOptions<T, int> BeAValidPortNumber<T>(this IRuleBuilder<T, int> ruleBuilder)
+    /// <summary>
+    /// Validates that the integer is a valid TCP/UDP port number.
+    /// </summary>
+    public static IRuleBuilderOptions<T, int> BeAValidPortNumber<T>(this IRuleBuilder<T, int> @this)
     {
-        Guard.IsNotNull(ruleBuilder);
+        Guard.IsNotNull(@this);
 
-        return ruleBuilder
+        return @this
             .InclusiveBetween(IPEndPoint.MinPort, IPEndPoint.MaxPort)
             .WithMessage(static (root, data) => $"Invalid port number: \"{data.ToString(NumberFormatInfo.InvariantInfo)}\".");
     }
 
-    public static IRuleBuilderOptions<T, string> BeAValidIpAddress<T>(this IRuleBuilder<T, string> ruleBuilder)
+    /// <summary>
+    /// Validates that the string is a valid IPv4 or IPv6 address.
+    /// </summary>
+    public static IRuleBuilderOptions<T, string> BeAValidIpAddress<T>(this IRuleBuilder<T, string> @this)
     {
-        return ruleBuilder
+        return @this
             .NotEmpty().WithMessage("IP address cannot be empty.")
             .Must(static data =>
                 IPAddress.TryParse(data, out IPAddress? ip) && ip is { AddressFamily: AddressFamily.InterNetwork or AddressFamily.InterNetworkV6 })
             .WithMessage(static (root, data) => $"Invalid IP address: \"{data}\".");
     }
 
-    public static IRuleBuilderOptions<T, string> BeAValidBase64<T>(this IRuleBuilder<T, string> ruleBuilder)
+    /// <summary>
+    /// Validates that the string is a valid Base64-encoded value.
+    /// Does not include the invalid data in error messages to prevent exposure of sensitive information.
+    /// </summary>
+    public static IRuleBuilderOptions<T, string> BeAValidBase64<T>(this IRuleBuilder<T, string> @this)
     {
-        Guard.IsNotNull(ruleBuilder);
+        Guard.IsNotNull(@this);
 
-        return ruleBuilder
+        return @this
             .NotEmpty().WithMessage("Base64 data cannot be empty.")
             .Must(static data => Base64.IsValid(data))
             .WithMessage(static (root, data) => "Invalid base64 data.");
@@ -113,11 +140,14 @@ public static class FluentValidationExtensions
         // as it may potentially be a sensitive value like private key
     }
 
-    public static IRuleBuilderOptions<T, string> BeAValidCountryCode<T>(this IRuleBuilder<T, string> ruleBuilder)
+    /// <summary>
+    /// Validates that the string is a valid ISO 3166-1 alpha-2 country code.
+    /// </summary>
+    public static IRuleBuilderOptions<T, string> BeAValidCountryCode<T>(this IRuleBuilder<T, string> @this)
     {
-        Guard.IsNotNull(ruleBuilder);
+        Guard.IsNotNull(@this);
 
-        return ruleBuilder
+        return @this
             .NotEmpty().WithMessage("Country code cannot be empty.")
             .Must(static data => new DefaultCountryCodeHelper().Codes.Contains(data, StringComparer.Ordinal))
             .WithMessage(static (root, data) => $"Invalid ISO 3166-1 alpha-2 country code: \"{data}\".");
