@@ -185,12 +185,14 @@ indent_size = 2
 [*.{props,targets,config,nuspec}]
 indent_size = 2
 
-# YAML config files
-[*.{yml,yaml}]
+# YAML / json config files
+[*.{yml,yaml,json}]
 indent_size = 2
+trim_trailing_whitespace = true
 
 # Shell scripts
 [*.sh]
+charset = utf-8
 end_of_line = lf
 [*.{cmd,bat}]
 end_of_line = crlf

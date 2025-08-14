@@ -10,28 +10,28 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace PkiFabric.Auth.Extensions.DependencyInjection;
 
-public static class CertAuthExtensions
+internal static class CertAuthExtensions
 {
     public const string RestrictedEndpoint = nameof(RestrictedEndpoint);
 
     private const int CacheSize = 1_000;
     private static readonly TimeSpan s_cacheDuration = TimeSpan.FromMinutes(5);
 
-    public static IServiceCollection AddClientCertAuth(IServiceCollection services)
+    public static IServiceCollection AddClientCertAuthentication(this IServiceCollection services)
     {
         AuthenticationBuilder auth = services.AddAuthentication(CertificateAuthenticationDefaults.AuthenticationScheme);
 
-        _ = auth.AddCertificate(static options =>
+        _ = auth.AddCertificate(static authentication =>
         {
-            options.AllowedCertificateTypes = CertificateTypes.Chained;
-            options.RevocationFlag = X509RevocationFlag.ExcludeRoot;
-            options.RevocationMode = X509RevocationMode.Offline;
-            options.ValidateCertificateUse = true; // EKU
-            options.ValidateValidityPeriod = true; // Validity period / expiration
+            authentication.AllowedCertificateTypes = CertificateTypes.Chained;
+            authentication.RevocationFlag = X509RevocationFlag.EntireChain;
+            authentication.RevocationMode = X509RevocationMode.Online;
+            authentication.ValidateCertificateUse = true; // EKU
+            authentication.ValidateValidityPeriod = true; // Validity period / expiration
 
-            options.Events = new CertificateAuthenticationEvents
+            authentication.Events = new CertificateAuthenticationEvents
             {
-                OnCertificateValidated = s_assignClaimsAsync,
+                OnCertificateValidated = s_assignCertClaimsAsync,
                 OnAuthenticationFailed = s_authFailedAsync
             };
         });
@@ -41,13 +41,18 @@ public static class CertAuthExtensions
             options.CacheSize = CacheSize;
             options.CacheEntryExpiration = s_cacheDuration;
         });
-        return auth.Services.AddAuthorization(static options =>
+        return services;
+    }
+
+    public static IServiceCollection AddClientCertAuthorization(this IServiceCollection services)
+    {        
+        return services.AddAuthorization(static authorization =>
         {
-            options.AddPolicy(RestrictedEndpoint, s_withClaims);
+            authorization.AddPolicy(RestrictedEndpoint, s_withCertClaims);
         });
     }
 
-    private static readonly Action<AuthorizationPolicyBuilder> s_withClaims = static policy =>
+    private static readonly Action<AuthorizationPolicyBuilder> s_withCertClaims = static policy =>
     {
         policy.RequireAuthenticatedUser();
 
@@ -57,15 +62,12 @@ public static class CertAuthExtensions
         policy.RequireClaim(ClaimTypes.X500DistinguishedName);
     };
 
-    private static readonly Func<CertificateValidatedContext, Task> s_assignClaimsAsync = static context =>
+    private static readonly Func<CertificateValidatedContext, Task> s_assignCertClaimsAsync = static context =>
     {
         // Assign the certificate to the user claims
         X509Certificate2 cert = context.ClientCertificate;
-
-        string? issuer = cert.Issuer;
-
+        string issuer = cert.Issuer;
         context.Principal ??= new ClaimsPrincipal();
-
         context.Principal.AddIdentity(new ClaimsIdentity(new[]
         {
             new Claim(ClaimTypes.Name, cert.Subject,ClaimValueTypes.String, issuer),
