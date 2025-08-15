@@ -13,6 +13,7 @@ using CommunityToolkit.Diagnostics;
 using FluentValidation;
 
 using PkiFabric.Core.Helpers;
+using PkiFabric.Core.Security;
 
 namespace PkiFabric.Core.Extensions;
 
@@ -86,7 +87,7 @@ public static class FluentValidationExtensions
 
     /// <summary>
     /// Validates that the string is a valid absolute HTTP or HTTPS URL.
-    /// </summary
+    /// </summary>
     public static IRuleBuilderOptions<T, string> BeAValidUrl<T>(this IRuleBuilder<T, string> @this)
     {
         Guard.IsNotNull(@this);
