@@ -8,7 +8,7 @@ namespace PkiFabric.Core.Extensions;
 /// <summary>
 /// Provides extension methods for <see cref="FileInfo"/> objects
 /// </summary>
-public static class FileExtensios
+public static class FileExtensions
 {
     /// <summary>
     /// Determines whether the specified file can be written to.
